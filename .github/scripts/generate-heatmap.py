@@ -75,18 +75,23 @@ def fetch_punch_card(owner, repo):
     May return 202 Accepted when computing for the first time → retry.
     """
     url = f"https://api.github.com/repos/{owner}/{repo}/stats/punch_card"
-    for attempt in range(3):
+    for attempt in range(6):
         try:
             data, status = api_get(url)
             if status == 202:
-                # stats being computed — wait and retry
-                time.sleep(2)
+                # stats being computed — exponential backoff
+                wait = 2 * (attempt + 1)
+                print(f"  ⏳ {repo}: 202 (computing), retry in {wait}s...")
+                time.sleep(wait)
                 continue
-            if isinstance(data, list):
+            if isinstance(data, list) and len(data) > 0:
                 return data
+            # empty list or unexpected — treat as no data
+            return []
         except Exception as e:
-            print(f"⚠ Punch card {repo} (try {attempt+1}): {e}")
-            time.sleep(1)
+            print(f"  ⚠ Punch card {repo} (try {attempt+1}): {e}")
+            time.sleep(2)
+    print(f"  ✗ {repo}: gave up after retries")
     return []
 
 
@@ -148,26 +153,21 @@ def generate_svg(matrix):
         f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
     )
 
-    # Styles
-    s.append("<style>")
-    s.append(
-        f"text{{font-family:'Courier New','Lucida Console',monospace}}"
-        f".t{{font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px}}"
-        f".sub{{font-size:8px;fill:{DIM}}}"
-        f".day{{font-size:7.5px;fill:{DIM}}}"
-        f".hr{{font-size:6.5px;fill:{DIM}}}"
-        f".leg{{font-size:7px;fill:{MUTED}}}"
-    )
-    s.append("</style>")
+    # Inline style constants (GitHub strips <style> blocks from SVGs)
+    title_style = f"font-family:monospace;font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px"
+    sub_style = f"font-family:monospace;font-size:8px;fill:{DIM}"
+    day_style = f"font-family:monospace;font-size:7.5px;fill:{DIM}"
+    hr_style = f"font-family:monospace;font-size:6.5px;fill:{DIM}"
+    leg_style = f"font-family:monospace;font-size:7px;fill:{MUTED}"
 
     # Background
     s.append(f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="{BG}"/>')
 
     # Title + subtitle
     ty = pad + 12
-    s.append(f'<text x="{pad}" y="{ty}" class="t">▸ ACTIVITY HEATMAP</text>')
+    s.append(f'<text x="{pad}" y="{ty}" style="{title_style}">▸ ACTIVITY HEATMAP</text>')
     s.append(
-        f'<text x="{pad}" y="{ty + sub_h}" class="sub">'
+        f'<text x="{pad}" y="{ty + sub_h}" style="{sub_style}">'
         f"Day of Week × Hour of Day · All-time · UTC{TZ_OFFSET:+d}"
         f"</text>"
     )
@@ -177,7 +177,7 @@ def generate_svg(matrix):
         x = gx + h * STEP + CELL / 2
         y = gy - 4
         s.append(
-            f'<text x="{x}" y="{y}" text-anchor="middle" class="hr">'
+            f'<text x="{x}" y="{y}" text-anchor="middle" style="{hr_style}">'
             f"{h:02d}</text>"
         )
 
@@ -185,7 +185,7 @@ def generate_svg(matrix):
     for ri in range(7):
         yc = gy + ri * STEP + CELL / 2 + 3
         s.append(
-            f'<text x="{gx - 4}" y="{yc}" text-anchor="end" class="day">'
+            f'<text x="{gx - 4}" y="{yc}" text-anchor="end" style="{day_style}">'
             f"{DAYS[ri]}</text>"
         )
 
@@ -220,7 +220,7 @@ def generate_svg(matrix):
     lx_start = gx + grid_w - leg_w - 40
 
     s.append(
-        f'<text x="{lx_start - 4}" y="{ly + 3}" text-anchor="end" class="leg">'
+        f'<text x="{lx_start - 4}" y="{ly + 3}" text-anchor="end" style="{leg_style}">'
         f"Less</text>"
     )
     for i, c in enumerate(HEAT):
@@ -230,7 +230,7 @@ def generate_svg(matrix):
             f'rx="2" fill="{c}" stroke="{BORDER}" stroke-width=".5"/>'
         )
     last_rx = lx_start + len(HEAT) * (leg_cell + leg_gap)
-    s.append(f'<text x="{last_rx + 4}" y="{ly + 3}" class="leg">More</text>')
+    s.append(f'<text x="{last_rx + 4}" y="{ly + 3}" style="{leg_style}">More</text>')
 
     s.append("</svg>")
     return "\n".join(s)

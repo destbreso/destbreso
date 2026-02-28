@@ -1,31 +1,25 @@
 #!/usr/bin/env python3
 """
-TETRIS CONTRIBUTIONS — Animated Loop
-=====================================
-The contribution graph visualised as a Tetris board that builds itself,
-flashes a CRT line-clear, dissolves, then rebuilds with a completely
-different drop pattern — forever.
+TETRIS CONTRIBUTIONS — SMIL Animated Loop
+==========================================
+GitHub strips CSS animations from SVGs in README. We use SMIL
+(<animate>, <animateTransform>) which GitHub allows.
 
-Pattern 1  →  columns left-to-right  (classic Tetris feel)
-Pattern 2  →  center-outward spiral  (radial burst)
+Loop cycle (20s total):
+  Pattern 1 (L→R columns drop in)  →  hold  →  flash+dissolve
+  Pattern 2 (center→out radial)    →  hold  →  flash+dissolve  →  repeat
 
 Generates: dist/tetris-contributions.svg
 Requires:  GITHUB_TOKEN env variable
 """
 
-import json
-import os
-import urllib.request
-import hashlib
-import datetime
-import math
+import json, os, math, hashlib, datetime, urllib.request
 
-# ── Config ─────────────────────────────────────────────────────────
 USERNAME = "destbreso"
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
 DIST = "dist"
 
-# ── Palette ────────────────────────────────────────────────────────
+# Palette
 BG      = "#0a0a0f"
 BOARD   = "#0d0d14"
 GRID_LN = "#151522"
@@ -43,17 +37,13 @@ CELL = 13
 GAP  = 2
 STEP = CELL + GAP
 
-MONTHS = [
-    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-]
+MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
 
-# animation total loop duration (seconds)
-CYCLE = 16
+# Animation timing (seconds)
+CYCLE = 20.0
 
 
-# ── Data fetching ──────────────────────────────────────────────────
 def fetch_contributions():
     query = (
         '{ user(login: "%s") { contributionsCollection '
@@ -65,10 +55,7 @@ def fetch_contributions():
     req = urllib.request.Request(
         "https://api.github.com/graphql",
         data=body,
-        headers={
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-        },
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req) as r:
         data = json.loads(r.read())
@@ -76,29 +63,18 @@ def fetch_contributions():
 
 
 def level(count):
-    if count == 0:
-        return 0
-    if count <= 3:
-        return 1
-    if count <= 7:
-        return 2
-    if count <= 12:
-        return 3
+    if count == 0: return 0
+    if count <= 3: return 1
+    if count <= 7: return 2
+    if count <= 12: return 3
     return 4
 
 
-# ── Helper: quantise to nearest step value ─────────────────────────
-def _q(val, step=3):
-    return int(round(val / step) * step)
-
-
-# ── SVG generation ─────────────────────────────────────────────────
 def generate_svg(cal):
     weeks = cal["weeks"]
     total = cal["totalContributions"]
     nw = len(weeks)
 
-    # Stats
     all_days = [d for w in weeks for d in w["contributionDays"]]
     active_days = sum(1 for d in all_days if d["contributionCount"] > 0)
     mx_streak = streak = 0
@@ -109,7 +85,6 @@ def generate_svg(cal):
         else:
             streak = 0
 
-    # Active cells
     cells = []
     for wi, w in enumerate(weeks):
         for di, day in enumerate(w["contributionDays"]):
@@ -117,14 +92,9 @@ def generate_svg(cal):
             if lv > 0:
                 cells.append((wi, di, lv))
 
-    # ── Layout ─────────────────────────────────────────────────────
-    pad = 16
-    title_h = 28
-    month_h = 14
-    label_w = 28
-    panel_gap = 14
-    panel_w = 136
-    panel_extra = 25
+    # Layout
+    pad = 16; title_h = 28; month_h = 14; label_w = 28
+    panel_gap = 14; panel_w = 136; panel_extra = 25
 
     board_w = nw * STEP
     board_h = 7 * STEP
@@ -139,250 +109,182 @@ def generate_svg(cal):
     px = bx + board_w + panel_gap
     py = by
 
-    # ── Compute per-cell animation keyframe groups ─────────────────
-    # Pattern 1: left → right  (t1 ∈ [2%, 32%])
-    # Pattern 2: centre → out  (t2 ∈ [52%, 82%])
+    # Compute delays: pattern1 (L→R), pattern2 (center→out)
     max_col = max(nw - 1, 1)
-    centre_x = nw / 2
-    centre_y = 3.5
-    max_dist = math.sqrt(centre_x ** 2 + centre_y ** 2) or 1
+    cx = nw / 2.0
+    cy = 3.5
+    max_dist = math.sqrt(cx**2 + cy**2) or 1
 
-    kf_groups: dict[tuple[int, int], list] = {}
-    cell_kf: dict[tuple[int, int], str] = {}
-
-    for col, row, lv in cells:
-        t1_raw = 2 + (col / max_col) * 30
-        dist = math.sqrt((col - centre_x) ** 2 + (row - centre_y) ** 2)
-        t2_raw = 52 + (dist / max_dist) * 30
-
-        t1 = max(2, min(_q(t1_raw), 32))
-        t2 = max(52, min(_q(t2_raw), 82))
-
-        key = (t1, t2)
-        kf_groups.setdefault(key, []).append((col, row, lv))
-        cell_kf[(col, row)] = f"kf_{t1}_{t2}"
-
-    # ── Start building SVG ─────────────────────────────────────────
+    # Build SVG
     s = []
     s.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
     )
 
-    # Defs
+    # Defs: scanline pattern
     s.append("<defs>")
     s.append(
         '<pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">'
-        '<rect width="4" height="2" fill="rgba(255,255,255,0.008)"/>'
-        "</pattern>"
+        '<rect width="4" height="2" fill="rgba(255,255,255,0.008)"/></pattern>'
     )
     s.append("</defs>")
 
-    # ── Styles + per-group keyframes ───────────────────────────────
-    s.append("<style>")
-    s.append(
-        f"text{{font-family:'Courier New','Lucida Console',monospace}}"
-        f".t{{font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px}}"
-        f".lbl{{font-size:7.5px;fill:{DIM}}}"
-        f".mo{{font-size:7px;fill:{MUTED}}}"
-        f".sl{{font-size:8px;fill:{DIM};letter-spacing:1.5px}}"
-        f".sv{{font-size:14px;font-weight:bold;fill:{TEXT}}}"
-        f".sa{{fill:{ACCENT}}}"
-    )
-    s.append(
-        f"@keyframes blink{{0%,100%{{opacity:.3}}50%{{opacity:.7}}}}"
-        f".nb{{animation:blink 2s ease-in-out infinite}}"
-    )
-
-    # Generate one @keyframes per (t1, t2) group
-    # Timeline (% of CYCLE):
-    #   Build-1: t1 → t1+3  (drop in)
-    #   Hold-1 : until 37%
-    #   Clear-1: 37→40 (flash) 40→46 (fade)
-    #   Pause  : 46→50
-    #   Build-2: t2 → t2+3  (drop in)
-    #   Hold-2 : until 87%
-    #   Clear-2: 87→90 (flash) 90→96 (fade)
-    #   Pause  : 96→100
-    for (t1, t2) in sorted(kf_groups.keys()):
-        name = f"kf_{t1}_{t2}"
-        t1e = min(t1 + 3, 35)
-        t2e = min(t2 + 3, 85)
-        s.append(f"@keyframes {name}{{")
-        s.append(f"0%{{opacity:0;transform:translateY(-14px)}}")
-        s.append(f"{t1}%{{opacity:0;transform:translateY(-14px)}}")
-        s.append(f"{t1e}%{{opacity:1;transform:translateY(0)}}")
-        s.append(f"37%{{opacity:1;transform:translateY(0)}}")
-        s.append(f"40%{{opacity:1;transform:translateY(0);filter:brightness(2.5)}}")
-        s.append(f"46%{{opacity:0;transform:translateY(0)}}")
-        s.append(f"50%{{opacity:0;transform:translateY(-14px)}}")
-        s.append(f"{t2}%{{opacity:0;transform:translateY(-14px)}}")
-        s.append(f"{t2e}%{{opacity:1;transform:translateY(0)}}")
-        s.append(f"87%{{opacity:1;transform:translateY(0)}}")
-        s.append(f"90%{{opacity:1;transform:translateY(0);filter:brightness(2.5)}}")
-        s.append(f"96%{{opacity:0;transform:translateY(0)}}")
-        s.append(f"100%{{opacity:0;transform:translateY(-14px)}}")
-        s.append("}")
-
-    s.append("</style>")
-
-    # ── Background + scanline overlay ──────────────────────────────
+    # Background
     s.append(f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="{BG}"/>')
     s.append(f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="url(#scan)"/>')
 
-    # ── Title ──────────────────────────────────────────────────────
-    s.append(
-        f'<text x="{bx}" y="{pad + 16}" class="t">'
-        f"▸ TETRIS CONTRIBUTIONS</text>"
-    )
+    # Title  (using style attribute instead of class — GitHub strips <style>)
+    title_style = f"font-family:monospace;font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px"
+    lbl_style = f"font-family:monospace;font-size:7.5px;fill:{DIM}"
+    mo_style = f"font-family:monospace;font-size:7px;fill:{MUTED}"
+    sl_style = f"font-family:monospace;font-size:8px;fill:{DIM};letter-spacing:1.5px"
+    sv_style = f"font-family:monospace;font-size:14px;font-weight:bold;fill:{TEXT}"
 
-    # ── Board frame (CRT double border) ────────────────────────────
-    s.append(
-        f'<rect x="{bx - 3}" y="{by - 3}" width="{board_w + 6}" '
-        f'height="{board_h + 6}" rx="4" fill="none" stroke="{BORDER}"/>'
-    )
-    s.append(
-        f'<rect x="{bx - 1}" y="{by - 1}" width="{board_w + 2}" '
-        f'height="{board_h + 2}" rx="2" fill="{BOARD}"/>'
-    )
+    s.append(f'<text x="{bx}" y="{pad+16}" style="{title_style}">▸ TETRIS CONTRIBUTIONS</text>')
+
+    # Board frame
+    s.append(f'<rect x="{bx-3}" y="{by-3}" width="{board_w+6}" height="{board_h+6}" rx="4" fill="none" stroke="{BORDER}"/>')
+    s.append(f'<rect x="{bx-1}" y="{by-1}" width="{board_w+2}" height="{board_h+2}" rx="2" fill="{BOARD}"/>')
 
     # Grid lines
     for r in range(8):
-        y = by + r * STEP
-        s.append(
-            f'<line x1="{bx}" y1="{y}" x2="{bx + board_w - GAP}" '
-            f'y2="{y}" stroke="{GRID_LN}" stroke-width=".5"/>'
-        )
+        yl = by + r * STEP
+        s.append(f'<line x1="{bx}" y1="{yl}" x2="{bx+board_w-GAP}" y2="{yl}" stroke="{GRID_LN}" stroke-width=".5"/>')
     for c in range(nw + 1):
-        x = bx + c * STEP
-        s.append(
-            f'<line x1="{x}" y1="{by}" x2="{x}" '
-            f'y2="{by + board_h - GAP}" stroke="{GRID_LN}" stroke-width=".5"/>'
-        )
+        xl = bx + c * STEP
+        s.append(f'<line x1="{xl}" y1="{by}" x2="{xl}" y2="{by+board_h-GAP}" stroke="{GRID_LN}" stroke-width=".5"/>')
 
     # Day labels
     for i, name in enumerate(DAY_LABELS):
-        if not name:
-            continue
-        y = by + i * STEP + CELL / 2 + 3
-        s.append(
-            f'<text x="{bx - 5}" y="{y}" text-anchor="end" class="lbl">'
-            f"{name}</text>"
-        )
+        if not name: continue
+        yl = by + i * STEP + CELL / 2 + 3
+        s.append(f'<text x="{bx-5}" y="{yl}" text-anchor="end" style="{lbl_style}">{name}</text>')
 
     # Month labels
-    seen: dict[int, int] = {}
+    seen = {}
     for wi, w in enumerate(weeks):
         if w["contributionDays"]:
             m = int(w["contributionDays"][0]["date"][5:7])
-            if m not in seen:
-                seen[m] = wi
+            if m not in seen: seen[m] = wi
     for m, wi in seen.items():
-        x = bx + wi * STEP
-        y = by - 4
-        s.append(f'<text x="{x}" y="{y}" class="mo">{MONTHS[m]}</text>')
+        xl = bx + wi * STEP
+        yl = by - 4
+        s.append(f'<text x="{xl}" y="{yl}" style="{mo_style}">{MONTHS[m]}</text>')
 
-    # ── Animated Tetris blocks ─────────────────────────────────────
+    # ── Animated Tetris blocks (SMIL) ──────────────────────────────
+    # Full cycle = 20s, two halves of 10s each.
+    # Half timeline (absolute seconds within half):
+    #   0→delay       : invisible, held at Y-14
+    #   delay→delay+.4: drop in (opacity 0→1, Y -14→0)
+    #   delay+.4→7.0  : hold visible at Y 0
+    #   7.0→8.0       : fade out (opacity 1→0)
+    #   8.0→10.0      : invisible
+    # Pattern 1 (L→R) = half 1 [0..10s], Pattern 2 (center→out) = half 2 [10..20s]
+
+    half = CYCLE / 2.0  # 10s
+
     for col, row, lv in cells:
         x = bx + col * STEP
         y = by + row * STEP
-        anim = cell_kf[(col, row)]
 
+        # Pattern 1 delay: left→right (0 .. 3s)
+        d1 = (col / max_col) * 3.0
+        # Pattern 2 delay: center→out (0 .. 3s)
+        dist = math.sqrt((col - cx)**2 + (row - cy)**2)
+        d2 = (dist / max_dist) * 3.0
+
+        # Build merged opacity keyTimes + values for the full 20s cycle
+        # Each half produces 6 keyframes, we merge removing the duplicate at boundary
+        def opacity_half(delay, offset):
+            return (
+                [offset, offset + delay, offset + delay + 0.4,
+                 offset + 7.0, offset + 8.0, offset + half],
+                [0, 0, 1, 1, 0, 0]
+            )
+
+        kt1, v1 = opacity_half(d1, 0)
+        kt2, v2 = opacity_half(d2, half)
+        o_kt = kt1 + kt2[1:]
+        o_v  = v1  + v2[1:]
+        # Normalize to 0..1
+        o_kt = [round(t / CYCLE, 4) for t in o_kt]
+        o_kt[-1] = 1.0
+
+        o_kt_str = ";".join(str(k) for k in o_kt)
+        o_v_str  = ";".join(str(v) for v in o_v)
+
+        # Build merged translate keyTimes + values
+        # translate values are "0 dy" pairs for animateTransform type="translate"
+        def translate_half(delay, offset):
+            return (
+                [offset, offset + delay, offset + delay + 0.4, offset + half],
+                ["0 -14", "0 -14", "0 0", "0 0"]
+            )
+
+        tkt1, tv1 = translate_half(d1, 0)
+        tkt2, tv2 = translate_half(d2, half)
+        t_kt = tkt1 + tkt2[1:]
+        t_v  = tv1  + tv2[1:]
+        t_kt = [round(t / CYCLE, 4) for t in t_kt]
+        t_kt[-1] = 1.0
+
+        t_kt_str = ";".join(str(k) for k in t_kt)
+        t_v_str  = ";".join(t_v)
+
+        s.append(f'<g opacity="0">')
+
+        # Opacity SMIL
         s.append(
-            f'<g style="animation:{anim} {CYCLE}s ease-in-out infinite">'
+            f'  <animate attributeName="opacity" '
+            f'dur="{CYCLE}s" repeatCount="indefinite" '
+            f'keyTimes="{o_kt_str}" values="{o_v_str}"/>'
         )
-        # main block
+        # Translate SMIL (drop-in effect)
         s.append(
-            f'  <rect x="{x}" y="{y}" width="{CELL}" '
-            f'height="{CELL}" rx="2" fill="{FILL[lv]}"/>'
+            f'  <animateTransform attributeName="transform" type="translate" '
+            f'dur="{CYCLE}s" repeatCount="indefinite" '
+            f'keyTimes="{t_kt_str}" values="{t_v_str}"/>'
         )
-        # bevel highlights / shadows
-        s.append(
-            f'  <line x1="{x+1}" y1="{y+.5}" x2="{x+CELL-1}" '
-            f'y2="{y+.5}" stroke="{HI[lv]}" stroke-width="1" opacity=".6"/>'
-        )
-        s.append(
-            f'  <line x1="{x+.5}" y1="{y+1}" x2="{x+.5}" '
-            f'y2="{y+CELL-1}" stroke="{HI[lv]}" stroke-width="1" opacity=".4"/>'
-        )
-        s.append(
-            f'  <line x1="{x+1}" y1="{y+CELL-.5}" x2="{x+CELL-1}" '
-            f'y2="{y+CELL-.5}" stroke="{LO[lv]}" stroke-width="1" opacity=".6"/>'
-        )
-        s.append(
-            f'  <line x1="{x+CELL-.5}" y1="{y+1}" x2="{x+CELL-.5}" '
-            f'y2="{y+CELL-1}" stroke="{LO[lv]}" stroke-width="1" opacity=".4"/>'
-        )
+
+        # Main block
+        s.append(f'  <rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" rx="2" fill="{FILL[lv]}"/>')
+        # Bevel highlights / shadows
+        s.append(f'  <line x1="{x+1}" y1="{y+.5}" x2="{x+CELL-1}" y2="{y+.5}" stroke="{HI[lv]}" stroke-width="1" opacity=".6"/>')
+        s.append(f'  <line x1="{x+.5}" y1="{y+1}" x2="{x+.5}" y2="{y+CELL-1}" stroke="{HI[lv]}" stroke-width="1" opacity=".4"/>')
+        s.append(f'  <line x1="{x+1}" y1="{y+CELL-.5}" x2="{x+CELL-1}" y2="{y+CELL-.5}" stroke="{LO[lv]}" stroke-width="1" opacity=".6"/>')
+        s.append(f'  <line x1="{x+CELL-.5}" y1="{y+1}" x2="{x+CELL-.5}" y2="{y+CELL-1}" stroke="{LO[lv]}" stroke-width="1" opacity=".4"/>')
         s.append("</g>")
 
-    # ── Side panel (static) ────────────────────────────────────────
-    s.append(
-        f'<rect x="{px-3}" y="{py-3}" width="{panel_w+6}" '
-        f'height="{panel_h+6}" rx="4" fill="none" stroke="{BORDER}"/>'
-    )
-    s.append(
-        f'<rect x="{px-1}" y="{py-1}" width="{panel_w+2}" '
-        f'height="{panel_h+2}" rx="2" fill="{BOARD}"/>'
-    )
+    # ── Side panel ─────────────────────────────────────────────────
+    s.append(f'<rect x="{px-3}" y="{py-3}" width="{panel_w+6}" height="{panel_h+6}" rx="4" fill="none" stroke="{BORDER}"/>')
+    s.append(f'<rect x="{px-1}" y="{py-1}" width="{panel_w+2}" height="{panel_h+2}" rx="2" fill="{BOARD}"/>')
 
     cx_p = px + panel_w / 2
-
-    # SCORE
     sy = py + 14
-    s.append(
-        f'<text x="{cx_p}" y="{sy}" text-anchor="middle" class="sl">'
-        f"SCORE</text>"
-    )
-    s.append(
-        f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" '
-        f'class="sv sa">{total:,}</text>'
-    )
+    s.append(f'<text x="{cx_p}" y="{sy}" text-anchor="middle" style="{sl_style}">SCORE</text>')
+    s.append(f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" style="{sv_style};fill:{ACCENT}">{total:,}</text>')
 
     sy += 30
-    s.append(
-        f'<line x1="{px+12}" y1="{sy}" x2="{px+panel_w-12}" '
-        f'y2="{sy}" stroke="{BORDER}" stroke-width=".5"/>'
-    )
-
-    # STREAK
+    s.append(f'<line x1="{px+12}" y1="{sy}" x2="{px+panel_w-12}" y2="{sy}" stroke="{BORDER}" stroke-width=".5"/>')
     sy += 14
-    s.append(
-        f'<text x="{cx_p}" y="{sy}" text-anchor="middle" class="sl">'
-        f"STREAK</text>"
-    )
-    s.append(
-        f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" '
-        f'class="sv">{mx_streak}</text>'
-    )
+    s.append(f'<text x="{cx_p}" y="{sy}" text-anchor="middle" style="{sl_style}">STREAK</text>')
+    s.append(f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" style="{sv_style}">{mx_streak}</text>')
 
     sy += 30
-    s.append(
-        f'<line x1="{px+12}" y1="{sy}" x2="{px+panel_w-12}" '
-        f'y2="{sy}" stroke="{BORDER}" stroke-width=".5"/>'
-    )
-
-    # ACTIVE
+    s.append(f'<line x1="{px+12}" y1="{sy}" x2="{px+panel_w-12}" y2="{sy}" stroke="{BORDER}" stroke-width=".5"/>')
     sy += 14
-    s.append(
-        f'<text x="{cx_p}" y="{sy}" text-anchor="middle" class="sl">'
-        f"ACTIVE</text>"
-    )
-    s.append(
-        f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" '
-        f'class="sv">{active_days}</text>'
-    )
+    s.append(f'<text x="{cx_p}" y="{sy}" text-anchor="middle" style="{sl_style}">ACTIVE</text>')
+    s.append(f'<text x="{cx_p}" y="{sy+20}" text-anchor="middle" style="{sv_style}">{active_days}</text>')
 
-    # ── NEXT piece (decorative, bottom of panel) ───────────────────
+    # NEXT piece
     today = datetime.date.today().isoformat()
     pidx = int(hashlib.md5(today.encode()).hexdigest()[:4], 16) % 7
     pieces = [
-        [(0, 0), (1, 0), (2, 0), (3, 0)],
-        [(0, 0), (1, 0), (0, 1), (1, 1)],
-        [(0, 0), (1, 0), (2, 0), (1, 1)],
-        [(1, 0), (2, 0), (0, 1), (1, 1)],
-        [(0, 0), (1, 0), (1, 1), (2, 1)],
-        [(0, 0), (0, 1), (1, 1), (2, 1)],
-        [(2, 0), (0, 1), (1, 1), (2, 1)],
+        [(0,0),(1,0),(2,0),(3,0)], [(0,0),(1,0),(0,1),(1,1)],
+        [(0,0),(1,0),(2,0),(1,1)], [(1,0),(2,0),(0,1),(1,1)],
+        [(0,0),(1,0),(1,1),(2,1)], [(0,0),(0,1),(1,1),(2,1)],
+        [(2,0),(0,1),(1,1),(2,1)],
     ]
     piece = pieces[pidx]
     ps, pg = 8, 1
@@ -395,16 +297,14 @@ def generate_svg(cal):
     for dx, dy in piece:
         rx = ox + dx * pstep
         ry = oy + dy * pstep
-        s.append(
-            f'<rect x="{rx}" y="{ry}" width="{ps}" height="{ps}" '
-            f'rx="1.5" fill="{ACCENT}" opacity=".4" class="nb"/>'
-        )
+        s.append(f'<rect x="{rx}" y="{ry}" width="{ps}" height="{ps}" rx="1.5" fill="{ACCENT}" opacity=".4">')
+        s.append(f'  <animate attributeName="opacity" dur="2s" repeatCount="indefinite" values=".3;.7;.3"/>')
+        s.append(f'</rect>')
 
     s.append("</svg>")
     return "\n".join(s)
 
 
-# ── Main ───────────────────────────────────────────────────────────
 def main():
     os.makedirs(DIST, exist_ok=True)
     cal = fetch_contributions()
