@@ -297,11 +297,19 @@
   const ACCENT = "34, 211, 238";
 
   async function initGitHubInsights() {
+    const hideLoaders = () => {
+      ["dist-loading", "heatmap-loading"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+      });
+    };
+
     const events = await fetchAllEvents();
-    if (!events.length) return;
+    if (!events.length) { hideLoaders(); return; }
 
     const pushEvents = events.filter((e) => e.type === "PushEvent");
     const commits = extractCommits(pushEvents);
+    if (!commits.length) { hideLoaders(); return; }
 
     renderDistributionChart(commits, "days");
     initDistributionTabs(commits);

@@ -173,6 +173,16 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <div align="center">
 
+<!-- TETRIS CONTRIBUTIONS — 100% custom, generated daily via GitHub Actions -->
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/tetris-contributions.svg" width="100%" alt="Tetris-style contribution graph" />
+
+<br/>
+
+<!-- ACTIVITY HEATMAP — Day of Week × Hour of Day -->
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/activity-heatmap.svg" width="100%" alt="Activity heatmap (day × hour)" />
+
+<br/>
+
 <!-- PROFILE SUMMARY CARDS — unique visualizations -->
 <img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=destbreso&theme=github_dark" width="100%" />
 

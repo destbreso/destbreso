@@ -1,4 +1,4 @@
-name: Generate Snake Animation
+name: Generate Profile Animations
 
 on:
   schedule:
@@ -6,17 +6,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: Platane/snk@v3
+      # ── Checkout repo (needed for Python scripts) ────────────────
+      - uses: actions/checkout@v4
+
+      # ── Snake contribution animation ─────────────────────────────
+      - name: Generate snake SVGs
+        uses: Platane/snk@v3
         with:
           github_user_name: destbreso
           outputs: |
             dist/github-snake.svg
             dist/github-snake-dark.svg?palette=github-dark
 
-      - uses: crazy-max/ghaction-github-pages@v3.1.0
+      # ── Custom generators ────────────────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate Tetris contribution SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-tetris.py
+
+      - name: Generate Activity heatmap SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-heatmap.py
+
+      # ── Push all SVGs to output branch ───────────────────────────
+      - name: Deploy to output branch
+        uses: crazy-max/ghaction-github-pages@v3.1.0
         with:
           target_branch: output
           build_dir: dist
