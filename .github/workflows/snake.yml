@@ -22,6 +22,9 @@ jobs:
             dist/github-snake-dark.svg?palette=github-dark
 
       # ── Custom generators ────────────────────────────────────────
+      - name: Ensure dist is writable
+        run: mkdir -p dist && chmod -R u+w dist
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
