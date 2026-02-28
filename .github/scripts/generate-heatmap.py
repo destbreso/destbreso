@@ -3,16 +3,17 @@
 ACTIVITY HEATMAP
 ================
 Day of Week × Hour of Day contribution heatmap SVG.
-Uses the GitHub Events API for timestamp-level granularity.
+Uses the GitHub Stats Punch Card API across ALL owned repos
+for full historical data (not just last 90 days).
 
 Generates: dist/activity-heatmap.svg
-Requires:  GITHUB_TOKEN env variable (optional, improves rate-limit)
+Requires:  GITHUB_TOKEN env variable
 """
 
 import json
 import os
+import time
 import urllib.request
-import datetime
 
 # ── Config ─────────────────────────────────────────────────────────
 USERNAME = "destbreso"
@@ -21,75 +22,94 @@ DIST = "dist"
 TZ_OFFSET = -4  # UTC-4 (Eastern / Miami)
 
 # ── Palette ────────────────────────────────────────────────────────
-BG = "#0a0a0f"
-CARD = "#111118"
+BG     = "#0a0a0f"
 BORDER = "#1e1e2a"
 ACCENT = "#22d3ee"
-TEXT = "#e0e0e8"
-DIM = "#55556a"
-MUTED = "#8888a0"
+DIM    = "#55556a"
+MUTED  = "#8888a0"
 
-#               empty       L1         L2         L3         L4
+#            empty       L1         L2         L3         L4
 HEAT = ["#111118", "#0b3d4a", "#0f6577", "#1590a5", "#22d3ee"]
 
 CELL = 18
-GAP = 2
+GAP  = 2
 STEP = CELL + GAP  # 20
 
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 # ── Data fetching ──────────────────────────────────────────────────
-def fetch_events():
-    """Fetch up to 1 000 public events from GitHub REST API."""
-    all_events = []
+def api_get(url):
     headers = {"Accept": "application/vnd.github.v3+json"}
     if TOKEN:
         headers["Authorization"] = f"Bearer {TOKEN}"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read()), r.status
 
-    for page in range(1, 11):
+
+def fetch_repos():
+    repos = []
+    for page in range(1, 5):
         url = (
-            f"https://api.github.com/users/{USERNAME}"
-            f"/events?per_page=100&page={page}"
+            f"https://api.github.com/users/{USERNAME}/repos"
+            f"?per_page=100&page={page}&type=owner&sort=pushed"
         )
-        req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req) as r:
-                data = json.loads(r.read())
-                if not data:
-                    break
-                all_events.extend(data)
+            data, _ = api_get(url)
+            if not data:
+                break
+            repos.extend(data)
         except Exception as e:
-            print(f"⚠  Page {page} failed: {e}")
+            print(f"⚠ Repos page {page}: {e}")
             break
+    # exclude forks
+    return [r for r in repos if not r.get("fork", False)]
 
-    return all_events
+
+def fetch_punch_card(owner, repo):
+    """
+    GET /repos/{owner}/{repo}/stats/punch_card
+    Returns [[day, hour, commits], …]  (168 entries: 7 × 24)
+    day: 0 = Sunday … 6 = Saturday
+    May return 202 Accepted when computing for the first time → retry.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/stats/punch_card"
+    for attempt in range(3):
+        try:
+            data, status = api_get(url)
+            if status == 202:
+                # stats being computed — wait and retry
+                time.sleep(2)
+                continue
+            if isinstance(data, list):
+                return data
+        except Exception as e:
+            print(f"⚠ Punch card {repo} (try {attempt+1}): {e}")
+            time.sleep(1)
+    return []
 
 
-def build_matrix(events):
-    """Build a 7×24 matrix (Mon-Sun × 0h-23h) from PushEvent timestamps."""
-    # matrix[weekday 0=Mon..6=Sun][hour 0..23]
+def build_matrix(repos):
+    """Aggregate punch-card data into a 7×24 matrix (Mon–Sun × 0–23h)."""
     matrix = [[0] * 24 for _ in range(7)]
 
-    for ev in events:
-        if ev.get("type") != "PushEvent":
-            continue
-        ts = ev.get("created_at", "")
-        if not ts:
-            continue
-        try:
-            parts = ts.replace("Z", "").split("T")
-            ymd = parts[0].split("-")
-            hms = parts[1].split(":")
-            dt = datetime.date(int(ymd[0]), int(ymd[1]), int(ymd[2]))
-            hour = (int(hms[0]) + TZ_OFFSET) % 24
-            dow = dt.weekday()  # 0=Mon .. 6=Sun
+    for repo in repos:
+        name = repo["name"]
+        owner = repo["owner"]["login"]
+        pc = fetch_punch_card(owner, name)
 
-            payload = ev.get("payload", {})
-            commits = payload.get("size") or len(payload.get("commits", [])) or 1
-            matrix[dow][hour] += commits
-        except Exception:
-            continue
+        for entry in pc:
+            if not isinstance(entry, list) or len(entry) < 3:
+                continue
+            day_sun, hour_utc, commits = entry
+            # day_sun: 0=Sun … 6=Sat  →  day_mon: 0=Mon … 6=Sun
+            day_mon = (day_sun - 1) % 7
+            hour_local = (hour_utc + TZ_OFFSET) % 24
+            matrix[day_mon][hour_local] += commits
+
+        # polite pause between repos
+        time.sleep(0.15)
 
     return matrix
 
@@ -110,8 +130,8 @@ def generate_svg(matrix):
 
     svg_w = pad + label_w + grid_w + pad
     svg_h = (
-        pad + title_h + sub_h + gap_after_sub + hour_h + grid_h
-        + legend_gap + legend_h + pad
+        pad + title_h + sub_h + gap_after_sub + hour_h
+        + grid_h + legend_gap + legend_h + pad
     )
 
     gx = pad + label_w
@@ -128,31 +148,31 @@ def generate_svg(matrix):
         f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
     )
 
-    # ── Styles ─────────────────────────────────────────────────────
+    # Styles
     s.append("<style>")
     s.append(
-        f"text {{ font-family:'Courier New','Lucida Console',monospace; }}\n"
-        f".t {{ font-size:11px; font-weight:bold; fill:{ACCENT}; letter-spacing:2px; }}\n"
-        f".sub {{ font-size:8px; fill:{DIM}; }}\n"
-        f".day {{ font-size:7.5px; fill:{DIM}; }}\n"
-        f".hr {{ font-size:6.5px; fill:{DIM}; }}\n"
-        f".leg {{ font-size:7px; fill:{MUTED}; }}"
+        f"text{{font-family:'Courier New','Lucida Console',monospace}}"
+        f".t{{font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px}}"
+        f".sub{{font-size:8px;fill:{DIM}}}"
+        f".day{{font-size:7.5px;fill:{DIM}}}"
+        f".hr{{font-size:6.5px;fill:{DIM}}}"
+        f".leg{{font-size:7px;fill:{MUTED}}}"
     )
     s.append("</style>")
 
-    # ── Background ─────────────────────────────────────────────────
+    # Background
     s.append(f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="{BG}"/>')
 
-    # ── Title ──────────────────────────────────────────────────────
+    # Title + subtitle
     ty = pad + 12
     s.append(f'<text x="{pad}" y="{ty}" class="t">▸ ACTIVITY HEATMAP</text>')
     s.append(
         f'<text x="{pad}" y="{ty + sub_h}" class="sub">'
-        f"Day of Week × Hour of Day · Last 90 days · UTC{TZ_OFFSET:+d}"
+        f"Day of Week × Hour of Day · All-time · UTC{TZ_OFFSET:+d}"
         f"</text>"
     )
 
-    # ── Hour labels (every 2 hours) ────────────────────────────────
+    # Hour labels (every 2 hours)
     for h in range(0, 24, 2):
         x = gx + h * STEP + CELL / 2
         y = gy - 4
@@ -161,7 +181,7 @@ def generate_svg(matrix):
             f"{h:02d}</text>"
         )
 
-    # ── Rows: Day label + cells ────────────────────────────────────
+    # Rows
     for ri in range(7):
         yc = gy + ri * STEP + CELL / 2 + 3
         s.append(
@@ -192,15 +212,17 @@ def generate_svg(matrix):
                 f'rx="3" fill="{color}"/>'
             )
 
-    # ── Legend (right-aligned) ─────────────────────────────────────
+    # Legend (right-aligned)
     ly = gy + grid_h + legend_gap + 10
     leg_cell = 10
     leg_gap = 3
     leg_w = len(HEAT) * (leg_cell + leg_gap)
-
     lx_start = gx + grid_w - leg_w - 40
 
-    s.append(f'<text x="{lx_start - 4}" y="{ly + 3}" text-anchor="end" class="leg">Less</text>')
+    s.append(
+        f'<text x="{lx_start - 4}" y="{ly + 3}" text-anchor="end" class="leg">'
+        f"Less</text>"
+    )
     for i, c in enumerate(HEAT):
         rx = lx_start + i * (leg_cell + leg_gap)
         s.append(
@@ -217,16 +239,15 @@ def generate_svg(matrix):
 # ── Main ───────────────────────────────────────────────────────────
 def main():
     os.makedirs(DIST, exist_ok=True)
-    events = fetch_events()
-    matrix = build_matrix(events)
+    repos = fetch_repos()
+    print(f"📦 Found {len(repos)} owned repos (non-fork)")
+    matrix = build_matrix(repos)
     svg = generate_svg(matrix)
     path = os.path.join(DIST, "activity-heatmap.svg")
     with open(path, "w") as f:
         f.write(svg)
-
     total = sum(sum(row) for row in matrix)
-    push_count = sum(1 for e in events if e.get("type") == "PushEvent")
-    print(f"✅ {path} — {total} commits from {push_count} push events")
+    print(f"✅ {path} — {total} total commits aggregated from {len(repos)} repos")
 
 
 if __name__ == "__main__":
