@@ -251,7 +251,7 @@
   }
 
   // ════════════════════════════════════════════════════════════════
-  // 5. Stat Counter Animations
+  // 5. Stat Counter + Donut Ring Animations
   // ════════════════════════════════════════════════════════════════
   function initCounters() {
     const counters = document.querySelectorAll("[data-count]");
@@ -262,6 +262,12 @@
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             animateCounter(entry.target);
+            // Also animate the ring if present in same .stat
+            const stat = entry.target.closest(".stat");
+            if (stat) {
+              const ring = stat.querySelector(".stat-ring-fill");
+              if (ring) animateRing(ring);
+            }
             observer.unobserve(entry.target);
           }
         });
@@ -287,6 +293,17 @@
     }
 
     requestAnimationFrame(tick);
+  }
+
+  function animateRing(el) {
+    const percent = parseInt(el.dataset.percent, 10) || 0;
+    const circumference = parseFloat(el.getAttribute("stroke-dasharray"));
+    const target = circumference - (circumference * percent) / 100;
+    // Trigger after a micro-delay so the CSS transition fires
+    requestAnimationFrame(() => {
+      el.style.strokeDashoffset = target;
+      el.classList.add("animated");
+    });
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -654,7 +671,7 @@
           : peakHour === 12
             ? "12 PM"
             : `${peakHour - 12} PM`;
-    setText("insight-peak-hour", peakHourStr);
+    setAnimatedText("insight-peak-hour", peakHourStr);
 
     // Peak day
     const dayCounts = Array(7).fill(0);
@@ -669,7 +686,7 @@
       "Friday",
       "Saturday",
     ];
-    setText("insight-peak-day", fullDays[peakDay]);
+    setAnimatedText("insight-peak-day", fullDays[peakDay]);
 
     // Longest streak (consecutive days with commits)
     const daySet = new Set(commits.map((c) => c.toISOString().slice(0, 10)));
@@ -687,7 +704,7 @@
         streak = 1;
       }
     }
-    setText("insight-streak", `${maxStreak} days`);
+    setAnimatedText("insight-streak", `${maxStreak} days`);
 
     // Avg commits per week
     const weeks = new Set(
@@ -697,7 +714,7 @@
       }),
     );
     const avgPerWeek = Math.round(commits.length / Math.max(weeks.size, 1));
-    setText("insight-velocity", avgPerWeek.toString());
+    setAnimatedText("insight-velocity", avgPerWeek.toString());
 
     // Night owl index (% of commits between 10pm-6am)
     const nightCommits = commits.filter((c) => {
@@ -705,7 +722,7 @@
       return h >= 22 || h < 6;
     });
     const nightPct = Math.round((nightCommits.length / commits.length) * 100);
-    setText("insight-night", `${nightPct}%`);
+    setAnimatedText("insight-night", `${nightPct}%`);
 
     // Focus score (% of commits in the peak 3-hour window)
     let maxWindow = 0;
@@ -717,11 +734,49 @@
       maxWindow = Math.max(maxWindow, windowSum);
     }
     const focusPct = Math.round((maxWindow / commits.length) * 100);
-    setText("insight-focus", `${focusPct}%`);
+    setAnimatedText("insight-focus", `${focusPct}%`);
   }
 
-  function setText(id, text) {
+  /**
+   * Set text on an insight card with a count-up animation for numeric parts.
+   * Non-numeric text (like day names) gets a quick reveal effect.
+   */
+  function setAnimatedText(id, text) {
     const el = document.getElementById(id);
-    if (el) el.textContent = text;
+    if (!el) return;
+
+    // Extract leading number if present (e.g. "42%", "12 PM", "7 days")
+    const numMatch = text.match(/^(\d+)/);
+    if (numMatch) {
+      const target = parseInt(numMatch[1], 10);
+      const suffix = text.slice(numMatch[1].length); // e.g. " days", "%", " AM"
+      const duration = 1200;
+      const start = performance.now();
+
+      function tick(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.round(eased * target) + suffix;
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+
+      // Observe visibility before animating
+      const obs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              requestAnimationFrame(tick);
+              obs.unobserve(el);
+            }
+          });
+        },
+        { threshold: 0.3 },
+      );
+      obs.observe(el);
+    } else {
+      // Text-only value: just set it (e.g. "Wednesday")
+      el.textContent = text;
+    }
   }
 })();

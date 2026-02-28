@@ -545,23 +545,67 @@ section {
 
 .stat {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
+
+/* ── Donut ring ───────────────────── */
+.stat-ring-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.stat-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.25));
+}
+.stat-ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 5;
+}
+.stat-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stat-ring-fill.animated {
+  /* final value set via JS */
+}
+.stat-ring-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
 .stat-number {
-  font-size: 2rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
+  line-height: 1;
 }
 .stat-unit {
-  font-size: 1.2rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--accent);
+  line-height: 1;
 }
 .stat-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-dim);
-  margin-top: 4px;
+  margin-top: 2px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
