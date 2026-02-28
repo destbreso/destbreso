@@ -305,11 +305,17 @@
     };
 
     const events = await fetchAllEvents();
-    if (!events.length) { hideLoaders(); return; }
+    if (!events.length) {
+      hideLoaders();
+      return;
+    }
 
     const pushEvents = events.filter((e) => e.type === "PushEvent");
     const commits = extractCommits(pushEvents);
-    if (!commits.length) { hideLoaders(); return; }
+    if (!commits.length) {
+      hideLoaders();
+      return;
+    }
 
     renderDistributionChart(commits, "days");
     initDistributionTabs(commits);
@@ -391,66 +397,95 @@
     if (!buckets.length) return;
 
     const maxVal = Math.max(...buckets.map((b) => b.count), 1);
-    const padding = { top: 20, right: 16, bottom: 36, left: 40 };
+    const padding = { top: 20, right: 16, bottom: 36, left: 44 };
     const chartW = W - padding.left - padding.right;
     const chartH = H - padding.top - padding.bottom;
-    const barW = Math.max(4, (chartW / buckets.length) * 0.7);
+    const barW = Math.max(4, (chartW / buckets.length) * 0.65);
     const gap = chartW / buckets.length;
 
-    // Grid lines
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 1;
+    // Grid lines — subtle cyan tint
     for (let i = 0; i <= 4; i++) {
       const y = padding.top + (chartH / 4) * i;
+      ctx.strokeStyle = `rgba(${ACCENT}, 0.04)`;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(padding.left, y);
       ctx.lineTo(W - padding.right, y);
       ctx.stroke();
     }
 
-    // Y-axis labels
-    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    // Y-axis labels — cyan tinted
     ctx.font = "10px 'JetBrains Mono', monospace";
     ctx.textAlign = "right";
     for (let i = 0; i <= 4; i++) {
       const val = Math.round((maxVal / 4) * (4 - i));
       const y = padding.top + (chartH / 4) * i;
+      ctx.fillStyle = `rgba(${ACCENT}, 0.3)`;
       ctx.fillText(val, padding.left - 8, y + 3);
     }
 
-    // Bars
+    // Bars with glow
     buckets.forEach((b, i) => {
       const x = padding.left + i * gap + (gap - barW) / 2;
       const barH = (b.count / maxVal) * chartH;
       const y = padding.top + chartH - barH;
 
-      // Bar gradient
-      const grad = ctx.createLinearGradient(x, y, x, y + barH);
-      grad.addColorStop(0, `rgba(${ACCENT}, 0.9)`);
-      grad.addColorStop(1, `rgba(${ACCENT}, 0.3)`);
-      ctx.fillStyle = grad;
+      if (barH > 0) {
+        // Glow layer (wider, blurred)
+        ctx.save();
+        ctx.shadowColor = `rgba(${ACCENT}, 0.35)`;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillStyle = `rgba(${ACCENT}, 0.15)`;
+        ctx.fillRect(x - 1, y + 2, barW + 2, barH - 2);
+        ctx.restore();
 
-      // Rounded top
-      const r = Math.min(barW / 2, 4);
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + barW - r, y);
-      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-      ctx.lineTo(x + barW, y + barH);
-      ctx.lineTo(x, y + barH);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.fill();
+        // Bar gradient — deeper at bottom
+        const grad = ctx.createLinearGradient(x, y, x, y + barH);
+        grad.addColorStop(0, `rgba(${ACCENT}, 0.95)`);
+        grad.addColorStop(0.6, `rgba(${ACCENT}, 0.6)`);
+        grad.addColorStop(1, `rgba(${ACCENT}, 0.2)`);
+        ctx.fillStyle = grad;
 
-      // X-axis label (show every Nth)
+        // Rounded top
+        const r = Math.min(barW / 2, 4);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barW - r, y);
+        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+        ctx.lineTo(x + barW, y + barH);
+        ctx.lineTo(x, y + barH);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.fill();
+
+        // Top highlight line
+        ctx.strokeStyle = `rgba(${ACCENT}, 0.7)`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y + 0.5);
+        ctx.lineTo(x + barW - r, y + 0.5);
+        ctx.stroke();
+      }
+
+      // X-axis label
       const showEvery = buckets.length > 20 ? 5 : buckets.length > 10 ? 3 : 1;
       if (i % showEvery === 0 || i === buckets.length - 1) {
-        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.fillStyle = `rgba(${ACCENT}, 0.25)`;
         ctx.font = "9px 'JetBrains Mono', monospace";
         ctx.textAlign = "center";
         ctx.fillText(b.label, x + barW / 2, H - padding.bottom + 16);
       }
     });
+
+    // Bottom axis line
+    ctx.strokeStyle = `rgba(${ACCENT}, 0.08)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + chartH);
+    ctx.lineTo(W - padding.right, padding.top + chartH);
+    ctx.stroke();
   }
 
   function bucketize(commits, range) {
@@ -575,9 +610,18 @@
         const intensity = val / maxVal;
 
         if (val > 0) {
-          const alpha = 0.15 + intensity * 0.85;
-          cell.style.background = `rgba(${ACCENT}, ${alpha})`;
-          cell.style.borderColor = `rgba(${ACCENT}, ${alpha * 0.3})`;
+          const alpha = 0.12 + intensity * 0.88;
+          cell.style.background = `rgba(${ACCENT}, ${alpha.toFixed(2)})`;
+          cell.style.borderColor = `rgba(${ACCENT}, ${(alpha * 0.35).toFixed(2)})`;
+
+          // Add glow classes based on intensity
+          if (intensity > 0.7) {
+            cell.classList.add("glow-high");
+          } else if (intensity > 0.4) {
+            cell.classList.add("glow-med");
+          } else {
+            cell.classList.add("glow-low");
+          }
         }
 
         const hStr =

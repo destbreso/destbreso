@@ -839,6 +839,40 @@ section {
   padding: 28px;
   margin-bottom: 24px;
   position: relative;
+  overflow: hidden;
+  transition:
+    border-color 0.35s var(--ease),
+    box-shadow 0.35s var(--ease);
+}
+.insights-block::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.5;
+}
+.insights-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.008) 2px,
+    rgba(255, 255, 255, 0.008) 4px
+  );
+  pointer-events: none;
+  border-radius: 16px;
+}
+.insights-block:hover {
+  border-color: rgba(34, 211, 238, 0.2);
+  box-shadow:
+    0 0 30px rgba(34, 211, 238, 0.06),
+    inset 0 0 30px rgba(34, 211, 238, 0.02);
 }
 .insights-block-header {
   display: flex;
@@ -847,6 +881,8 @@ section {
   margin-bottom: 24px;
   flex-wrap: wrap;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 .insights-block-header h3 {
   display: flex;
@@ -855,51 +891,62 @@ section {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
 }
 .insights-block-header h3 svg {
   width: 18px;
   height: 18px;
   color: var(--accent);
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.4));
 }
 
 /* Chart tabs */
 .chart-tabs {
   display: flex;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.03);
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 3px;
+  position: relative;
+  z-index: 1;
 }
 .chart-tab {
   padding: 6px 14px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   color: var(--text-dim);
   background: none;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: all 0.25s var(--ease);
+  letter-spacing: 0.03em;
 }
 .chart-tab:hover {
   color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
 }
 .chart-tab.active {
   background: var(--accent-dim);
   color: var(--accent);
   font-weight: 600;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 
 /* Chart container */
 .chart-container {
   position: relative;
   height: 220px;
+  z-index: 1;
 }
 .chart-container canvas {
   width: 100% !important;
   height: 100% !important;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.1));
 }
 .chart-loading {
   position: absolute;
@@ -970,13 +1017,23 @@ section {
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.02);
-  transition: all 0.2s var(--ease);
+  transition: all 0.25s var(--ease);
   cursor: default;
   position: relative;
+}
+.heatmap-cell.glow-low {
+  box-shadow: 0 0 4px rgba(34, 211, 238, 0.1);
+}
+.heatmap-cell.glow-med {
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.2);
+}
+.heatmap-cell.glow-high {
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.35);
 }
 .heatmap-cell:hover {
   transform: scale(1.3);
   z-index: 2;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
 }
 .heatmap-cell[data-tip]:hover::after {
   content: attr(data-tip);
@@ -1009,9 +1066,12 @@ section {
   text-align: center;
 }
 .heatmap-hint {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-dim);
   font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 .heatmap-legend {
   display: flex;
@@ -1019,6 +1079,8 @@ section {
   justify-content: flex-end;
   gap: 6px;
   margin-top: 12px;
+  position: relative;
+  z-index: 1;
 }
 .heatmap-legend-label {
   font-size: 0.65rem;
@@ -1051,47 +1113,90 @@ section {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px 16px;
+  padding: 22px 16px 18px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  transition: all 0.3s var(--ease);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s var(--ease);
+}
+.insight-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.3;
+  transition: all 0.35s var(--ease);
 }
 .insight-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: 0 0 20px var(--accent-dim);
+  border-color: rgba(34, 211, 238, 0.3);
+  transform: translateY(-4px);
+  box-shadow:
+    0 4px 24px rgba(34, 211, 238, 0.1),
+    0 0 40px rgba(34, 211, 238, 0.05);
+}
+.insight-card:hover::before {
+  left: 10%;
+  right: 10%;
+  opacity: 0.7;
+  box-shadow: 0 0 12px var(--accent);
 }
 .insight-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: var(--accent-dim);
-  margin-bottom: 4px;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-dim),
+    rgba(34, 211, 238, 0.08)
+  );
+  border: 1px solid rgba(34, 211, 238, 0.1);
+  margin-bottom: 6px;
+  transition: all 0.35s var(--ease);
+}
+.insight-card:hover .insight-icon {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 211, 238, 0.2),
+    rgba(34, 211, 238, 0.08)
+  );
+  border-color: rgba(34, 211, 238, 0.25);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.15);
 }
 .insight-icon svg {
   width: 18px;
   height: 18px;
   color: var(--accent);
+  filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.3));
 }
 .insight-value {
   font-family: var(--font-mono);
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--accent);
   line-height: 1.2;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.3);
+  transition: text-shadow 0.3s var(--ease);
+}
+.insight-card:hover .insight-value {
+  text-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
 }
 .insight-label {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.3;
+  font-family: var(--font-mono);
 }
 
 /* ── Publications ──────────────────────────────────────────────── */
