@@ -49,16 +49,26 @@ TITLE_H   = 28
 LABEL_H   = 20
 CYCLE     = 24.0         # full animation cycle (s)
 
-# Character pool: Katakana + digits + ASCII symbols
+# Character pool: Katakana + digits + XML-safe ASCII symbols
+# NOTE: <, >, & are excluded — they break SVG/XML parsing
 CHARS = list(
     "アイウエオカキクケコサシスセソタチツテトナニヌネノ"
     "ハヒフヘホマミムメモヤユヨラリルレロワヲン"
     "0123456789"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "{}[]<>|/\\:;=+-*&#$%"
+    "{}[]|/:;=+-*#$%?!"
 )
 CHAR_SIZE = 9       # font-size px for characters
 CHAR_STEP = 11      # vertical px spacing between chars
+
+
+def xml_esc(ch):
+    """Escape a character for safe SVG/XML text content."""
+    if ch == '&':  return '&amp;'
+    if ch == '<':  return '&lt;'
+    if ch == '>':  return '&gt;'
+    if ch == '"': return '&quot;'
+    return ch
 
 
 # ── helpers ───────────────────────────────────────────────────
@@ -216,7 +226,7 @@ def generate_svg(cal):
             f'begin="{fdel:.1f}s" repeatCount="indefinite"/>'
         )
         for ci in range(slen):
-            ch = random.choice(CHARS)
+            ch = xml_esc(random.choice(CHARS))
             cy = sky_top - slen * CHAR_STEP + ci * CHAR_STEP
             op = 0.25 + 0.75 * (ci / max(slen - 1, 1))
             s.append(
@@ -277,7 +287,7 @@ def generate_svg(cal):
             )
 
             for ci in range(slen):
-                ch = random.choice(CHARS)
+                ch = xml_esc(random.choice(CHARS))
                 cy = sky_top - slen * CHAR_STEP + ci * CHAR_STEP
                 px = col_cx + xoff
 
