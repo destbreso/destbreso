@@ -110,8 +110,15 @@ def build_matrix(repos):
             day_sun, hour_utc, commits = entry
             # day_sun: 0=Sun … 6=Sat  →  day_mon: 0=Mon … 6=Sun
             day_mon = (day_sun - 1) % 7
-            hour_local = (hour_utc + TZ_OFFSET) % 24
-            matrix[day_mon][hour_local] += commits
+            # Timezone shift — also correct the day when crossing midnight
+            hour_shifted = hour_utc + TZ_OFFSET
+            if hour_shifted < 0:
+                hour_shifted += 24
+                day_mon = (day_mon - 1) % 7
+            elif hour_shifted >= 24:
+                hour_shifted -= 24
+                day_mon = (day_mon + 1) % 7
+            matrix[day_mon][hour_shifted] += commits
 
         # polite pause between repos
         time.sleep(0.15)
@@ -181,7 +188,11 @@ def generate_svg(matrix):
             f"{h:02d}</text>"
         )
 
-    # Rows
+    # Rows — cells with staggered SMIL fade-in + glow pulse on active cells
+    anim_total_dur = 2.8   # seconds to reveal entire grid
+    cell_count = 7 * 24
+    per_cell = anim_total_dur / cell_count
+
     for ri in range(7):
         yc = gy + ri * STEP + CELL / 2 + 3
         s.append(
@@ -207,10 +218,48 @@ def generate_svg(matrix):
                 else:
                     color = HEAT[4]
 
+            # Staggered reveal: column-first scan (top→bottom, left→right)
+            cell_idx = h * 7 + ri
+            delay = round(cell_idx * per_cell, 3)
+
             s.append(
                 f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
-                f'rx="3" fill="{color}"/>'
+                f'rx="3" fill="{color}" opacity="0">'
             )
+            # Fade-in from 0 → 1
+            s.append(
+                f'<animate attributeName="opacity" from="0" to="1" '
+                f'dur="0.35s" begin="{delay:.3f}s" fill="freeze"/>'
+            )
+            # Grow from center (animate x/y/width/height simultaneously)
+            half = CELL / 2
+            s.append(
+                f'<animate attributeName="x" values="{x + half};{x - 1};{x}" '
+                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
+            )
+            s.append(
+                f'<animate attributeName="y" values="{y + half};{y - 1};{y}" '
+                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
+            )
+            s.append(
+                f'<animate attributeName="width" values="0;{CELL + 2};{CELL}" '
+                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
+            )
+            s.append(
+                f'<animate attributeName="height" values="0;{CELL + 2};{CELL}" '
+                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
+            )
+
+            # Active cells get a subtle glow pulse after reveal
+            if val > 0 and ratio > 0.5:
+                pulse_begin = round(anim_total_dur + 0.5, 2)
+                s.append(
+                    f'<animate attributeName="opacity" '
+                    f'values="1;0.6;1" dur="3s" '
+                    f'begin="{pulse_begin}s" repeatCount="indefinite"/>'
+                )
+
+            s.append("</rect>")
 
     # Legend (right-aligned)
     ly = gy + grid_h + legend_gap + 10
