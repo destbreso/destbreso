@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>David Estevez — CTO, Engineer, Mathematician</title>
+    <meta
+      name="description"
+      content="David Estevez — CTO @ Coverfleet. 10+ years building zero-to-scale platforms, leading engineering teams, and solving hard problems with math and code."
+    />
+    <meta name="author" content="David Estevez" />
+
+    <!-- Open Graph -->
+    <meta
+      property="og:title"
+      content="David Estevez — CTO, Engineer, Mathematician"
+    />
+    <meta
+      property="og:description"
+      content="Building zero-to-scale platforms, leading engineering teams, and solving hard problems with math and code."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://destbreso.com" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Canvas background                                          -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Navigation                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <nav id="navbar">
+      <div class="nav-inner">
+        <a href="#hero" class="nav-logo">
+          <span class="logo-bracket">{</span>
+          <span class="logo-text">d.e</span>
+          <span class="logo-bracket">}</span>
+        </a>
+        <div class="nav-links" id="nav-links">
+          <a href="#about" class="nav-link">About</a>
+          <a href="#skills" class="nav-link">Skills</a>
+          <a href="#projects" class="nav-link">Projects</a>
+          <a href="#experience" class="nav-link">Experience</a>
+          <a href="#publications" class="nav-link">Research</a>
+          <a href="#contact" class="nav-link">Contact</a>
+        </div>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Hero                                                        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="hero">
+      <div class="hero-content">
+        <div class="terminal-window" data-animate="fade-up">
+          <div class="terminal-bar">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">destbreso@dev ~ %</span>
+          </div>
+          <div class="terminal-body">
+            <p class="terminal-line">
+              <span class="terminal-prompt">$</span>
+              <span class="terminal-cmd" id="typed-cmd"></span>
+              <span class="terminal-cursor">█</span>
+            </p>
+            <div class="terminal-output" id="terminal-output"></div>
+          </div>
+        </div>
+
+        <div class="hero-info" data-animate="fade-up" data-delay="600">
+          <h1 class="hero-name">David Estevez</h1>
+          <div class="hero-titles">
+            <span class="hero-title-item">CTO @ Coverfleet</span>
+            <span class="hero-title-sep">·</span>
+            <span class="hero-title-item">Mathematician</span>
+            <span class="hero-title-sep">·</span>
+            <span class="hero-title-item">Engineer</span>
+          </div>
+          <p class="hero-tagline">
+            Building zero-to-scale platforms with math, code, and obsessive
+            attention to architecture.
+          </p>
+          <div class="hero-cta">
+            <a href="#projects" class="btn btn-primary">
+              <i data-lucide="code-2"></i> View Projects
+            </a>
+            <a href="#contact" class="btn btn-ghost">
+              <i data-lucide="mail"></i> Get in Touch
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-indicator" data-animate="fade-up" data-delay="1200">
+        <div class="scroll-mouse">
+          <div class="scroll-wheel"></div>
+        </div>
+        <span>scroll</span>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- About                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="about">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">01.</span> About Me
+        </h2>
+
+        <div class="about-grid">
+          <div class="about-text" data-animate="fade-up" data-delay="200">
+            <p>
+              I'm a <strong>Mathematician turned CTO</strong> with 10+ years of
+              experience leading engineering teams and building platforms from
+              zero to scale. My path started with
+              <em>pattern recognition research</em> in biometrics at CENATAV,
+              and evolved through co-founding startups, architecting
+              multi-tenant SaaS platforms, and now leading technology strategy
+              at Coverfleet.
+            </p>
+            <p>
+              I believe the best engineering comes from
+              <strong>first-principles thinking</strong> — the same rigor you
+              apply to a topology proof can design a bulletproof distributed
+              system. I'm passionate about clean architecture, developer
+              experience, and building tools that make teams move faster.
+            </p>
+            <p>
+              When I'm not architecting systems, you'll find me exploring
+              <strong>agentic AI patterns</strong>, writing about engineering
+              practices, contributing to open source, or deep-diving into
+              distributed systems.
+            </p>
+          </div>
+
+          <div class="about-card" data-animate="fade-up" data-delay="400">
+            <div class="about-card-inner">
+              <div class="about-stats">
+                <div class="stat">
+                  <span class="stat-number" data-count="10">0</span>
+                  <span class="stat-unit">+</span>
+                  <span class="stat-label">Years in Tech</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number" data-count="40">0</span>
+                  <span class="stat-unit">+</span>
+                  <span class="stat-label">Team Members Led</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number" data-count="3">0</span>
+                  <span class="stat-unit"></span>
+                  <span class="stat-label">Research Papers</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-number" data-count="6">0</span>
+                  <span class="stat-unit">+</span>
+                  <span class="stat-label">Open Source Projects</span>
+                </div>
+              </div>
+              <div class="about-detail">
+                <div class="about-detail-item">
+                  <i data-lucide="map-pin"></i>
+                  <span>Miami, Florida</span>
+                </div>
+                <div class="about-detail-item">
+                  <i data-lucide="graduation-cap"></i>
+                  <span>B.Sc. Mathematics — Universidad de La Habana</span>
+                </div>
+                <div class="about-detail-item">
+                  <i data-lucide="languages"></i>
+                  <span>English · Spanish (native)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Skills                                                      -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="skills">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">02.</span> Tech Stack
+        </h2>
+
+        <div class="skills-grid">
+          <!-- Backend -->
+          <div class="skill-category" data-animate="fade-up" data-delay="100">
+            <div class="skill-category-header">
+              <i data-lucide="server"></i>
+              <h3>Backend & Runtime</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">Node.js</span>
+              <span class="skill-tag primary">TypeScript</span>
+              <span class="skill-tag">Express</span>
+              <span class="skill-tag">NestJS</span>
+              <span class="skill-tag">Python</span>
+              <span class="skill-tag">JavaScript</span>
+            </div>
+          </div>
+
+          <!-- Frontend -->
+          <div class="skill-category" data-animate="fade-up" data-delay="200">
+            <div class="skill-category-header">
+              <i data-lucide="layout"></i>
+              <h3>Frontend</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">React</span>
+              <span class="skill-tag primary">Next.js</span>
+              <span class="skill-tag">Tailwind CSS</span>
+              <span class="skill-tag">Radix UI</span>
+              <span class="skill-tag">Zustand</span>
+              <span class="skill-tag">Framer Motion</span>
+            </div>
+          </div>
+
+          <!-- Data & DB -->
+          <div class="skill-category" data-animate="fade-up" data-delay="300">
+            <div class="skill-category-header">
+              <i data-lucide="database"></i>
+              <h3>Databases & Data</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">MongoDB</span>
+              <span class="skill-tag primary">PostgreSQL</span>
+              <span class="skill-tag">Redis</span>
+              <span class="skill-tag">DynamoDB</span>
+              <span class="skill-tag">InfluxDB</span>
+              <span class="skill-tag">ELK Stack</span>
+            </div>
+          </div>
+
+          <!-- DevOps -->
+          <div class="skill-category" data-animate="fade-up" data-delay="400">
+            <div class="skill-category-header">
+              <i data-lucide="container"></i>
+              <h3>DevOps & Cloud</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">Docker</span>
+              <span class="skill-tag primary">AWS</span>
+              <span class="skill-tag">Azure</span>
+              <span class="skill-tag">GitHub Actions</span>
+              <span class="skill-tag">GitLab CI/CD</span>
+              <span class="skill-tag">Grafana</span>
+            </div>
+          </div>
+
+          <!-- Architecture -->
+          <div class="skill-category" data-animate="fade-up" data-delay="500">
+            <div class="skill-category-header">
+              <i data-lucide="boxes"></i>
+              <h3>Architecture</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">System Design</span>
+              <span class="skill-tag primary">Microservices</span>
+              <span class="skill-tag">Event-Driven</span>
+              <span class="skill-tag">API Design</span>
+              <span class="skill-tag">Multi-tenant</span>
+              <span class="skill-tag">DDD</span>
+            </div>
+          </div>
+
+          <!-- AI / ML -->
+          <div class="skill-category" data-animate="fade-up" data-delay="600">
+            <div class="skill-category-header">
+              <i data-lucide="brain"></i>
+              <h3>AI & Research</h3>
+            </div>
+            <div class="skill-tags">
+              <span class="skill-tag primary">LLM Integration</span>
+              <span class="skill-tag primary">Agentic AI</span>
+              <span class="skill-tag">Computer Vision</span>
+              <span class="skill-tag">Biometrics</span>
+              <span class="skill-tag">Pattern Recognition</span>
+              <span class="skill-tag">Prompt Engineering</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Projects                                                    -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="projects">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">03.</span> Projects
+        </h2>
+
+        <p class="section-subtitle" data-animate="fade-up" data-delay="100">
+          Open-source tools, experiments, and platforms I build to explore ideas
+          and push boundaries.
+        </p>
+
+        <div class="projects-grid">
+          <!-- Coverfleet -->
+          <div
+            class="project-card featured"
+            data-animate="fade-up"
+            data-delay="150"
+          >
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="truck"></i>
+              </div>
+              <div class="project-links">
+                <span class="project-badge">Professional</span>
+              </div>
+            </div>
+            <h3 class="project-title">Coverfleet</h3>
+            <p class="project-desc">
+              Full-stack fleet management platform with AI-powered DVIR
+              inspections, real-time ELD sync, driver management, and compliance
+              reporting. Built from zero to production as CTO.
+            </p>
+            <div class="project-tech">
+              <span>Next.js 15</span>
+              <span>Express 5</span>
+              <span>MongoDB</span>
+              <span>TypeScript</span>
+              <span>BullMQ</span>
+              <span>AWS</span>
+            </div>
+          </div>
+
+          <!-- Agentic Lab -->
+          <div class="project-card" data-animate="fade-up" data-delay="200">
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="bot"></i>
+              </div>
+              <div class="project-links">
+                <a
+                  href="https://github.com/destbreso/agentic-lab"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="GitHub"
+                >
+                  <i data-lucide="github"></i>
+                </a>
+              </div>
+            </div>
+            <h3 class="project-title">Agentic Lab</h3>
+            <p class="project-desc">
+              Extensible platform for building autonomous agentic loops and AI
+              workflows. Multi-provider support (OpenAI, Anthropic, Ollama),
+              tool orchestration, and a real-time dashboard.
+            </p>
+            <div class="project-tech">
+              <span>TypeScript</span>
+              <span>Node.js</span>
+              <span>PostgreSQL</span>
+              <span>Redis</span>
+              <span>Qdrant</span>
+              <span>Docker</span>
+            </div>
+          </div>
+
+          <!-- CV Generator -->
+          <div class="project-card" data-animate="fade-up" data-delay="250">
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="file-text"></i>
+              </div>
+              <div class="project-links">
+                <a
+                  href="https://github.com/destbreso/cv-generator"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="GitHub"
+                >
+                  <i data-lucide="github"></i>
+                </a>
+              </div>
+            </div>
+            <h3 class="project-title">CV Generator</h3>
+            <p class="project-desc">
+              AI-powered resume builder with 18 professional templates,
+              multi-LLM enhancement, real-time preview, and PDF export. Deployed
+              on Cloudflare Workers.
+            </p>
+            <div class="project-tech">
+              <span>Next.js 16</span>
+              <span>React 19</span>
+              <span>Tailwind v4</span>
+              <span>Cloudflare</span>
+            </div>
+          </div>
+
+          <!-- Load Testing Lab -->
+          <div class="project-card" data-animate="fade-up" data-delay="300">
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="gauge"></i>
+              </div>
+              <div class="project-links">
+                <a
+                  href="https://github.com/destbreso/load-testing-lab"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="GitHub"
+                >
+                  <i data-lucide="github"></i>
+                </a>
+              </div>
+            </div>
+            <h3 class="project-title">Load Testing Lab</h3>
+            <p class="project-desc">
+              Complete load testing platform with a professional CLI (18
+              commands), k6 + Artillery runners, InfluxDB metrics, and 6
+              pre-built Grafana dashboards.
+            </p>
+            <div class="project-tech">
+              <span>k6</span>
+              <span>Artillery</span>
+              <span>InfluxDB</span>
+              <span>Grafana</span>
+              <span>Docker</span>
+            </div>
+          </div>
+
+          <!-- LLM Worker Lab -->
+          <div class="project-card" data-animate="fade-up" data-delay="350">
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="cpu"></i>
+              </div>
+              <div class="project-links">
+                <a
+                  href="https://github.com/destbreso/llm-worker-lab"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="GitHub"
+                >
+                  <i data-lucide="github"></i>
+                </a>
+              </div>
+            </div>
+            <h3 class="project-title">LLM Worker Lab</h3>
+            <p class="project-desc">
+              Scalable async LLM request processing with smart rate limiting,
+              priority queues, worker pools, and observability via Prometheus +
+              Grafana.
+            </p>
+            <div class="project-tech">
+              <span>Node.js</span>
+              <span>Redis</span>
+              <span>p-queue</span>
+              <span>Prometheus</span>
+              <span>Docker</span>
+            </div>
+          </div>
+
+          <!-- Queue Simulation -->
+          <div class="project-card" data-animate="fade-up" data-delay="400">
+            <div class="project-card-header">
+              <div class="project-icon">
+                <i data-lucide="workflow"></i>
+              </div>
+              <div class="project-links">
+                <a
+                  href="https://github.com/destbreso/queue-system-simulation"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="GitHub"
+                >
+                  <i data-lucide="github"></i>
+                </a>
+              </div>
+            </div>
+            <h3 class="project-title">Queue System Simulation</h3>
+            <p class="project-desc">
+              Interactive visualization and simulation of queueing theory
+              models. Real-time parameter tuning and animated queue behavior.
+            </p>
+            <div class="project-tech">
+              <span>Next.js</span>
+              <span>React</span>
+              <span>TypeScript</span>
+              <span>shadcn/ui</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Experience                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="experience">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">04.</span> Experience
+        </h2>
+
+        <div class="timeline">
+          <div class="timeline-item" data-animate="fade-up" data-delay="100">
+            <div class="timeline-dot active"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3>CTO — Strategic & Product Innovation</h3>
+                <span class="timeline-company">Coverfleet</span>
+              </div>
+              <span class="timeline-date">Jun 2025 — Present</span>
+              <p>
+                Leading technology strategy, product innovation, and engineering
+                culture for a fleet management platform. Architecting AI-powered
+                inspection systems, real-time telematics integration, and
+                multi-tenant SaaS infrastructure.
+              </p>
+            </div>
+          </div>
+
+          <div class="timeline-item" data-animate="fade-up" data-delay="200">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3>Chief Systems & Data Engineer</h3>
+                <span class="timeline-company">Coverfleet</span>
+              </div>
+              <span class="timeline-date">Apr 2020 — Jun 2025</span>
+              <p>
+                Built the entire technical stack from zero — backend APIs,
+                frontend dashboards, ETL pipelines, and cloud infrastructure.
+                Scaled from MVP to production platform serving trucking
+                companies nationwide.
+              </p>
+            </div>
+          </div>
+
+          <div class="timeline-item" data-animate="fade-up" data-delay="300">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3>Chief Technology Officer</h3>
+                <span class="timeline-company">Guajiritos</span>
+              </div>
+              <span class="timeline-date">Jul 2023 — Jan 2024</span>
+              <p>
+                Led a 40+ member engineering team across 10+ SaaS products.
+                Established engineering standards, CI/CD pipelines, and
+                mentoring programs.
+              </p>
+            </div>
+          </div>
+
+          <div class="timeline-item" data-animate="fade-up" data-delay="400">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3>Co-Founder & Solutions Architect</h3>
+                <span class="timeline-company">One Broker Solutions LLC</span>
+              </div>
+              <span class="timeline-date">Jan 2019 — Jan 2023</span>
+              <p>
+                Co-founded a cybersecurity and SaaS company. Designed and built
+                multi-tenant platforms, brokerage management systems, and custom
+                business intelligence dashboards.
+              </p>
+            </div>
+          </div>
+
+          <div class="timeline-item" data-animate="fade-up" data-delay="500">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3>Machine Learning Researcher</h3>
+                <span class="timeline-company">CENATAV — Biometrics Lab</span>
+              </div>
+              <span class="timeline-date">Jul 2015 — Dec 2018</span>
+              <p>
+                Research in fingerprint recognition, dissimilarity
+                representations, and pattern recognition. Published 3
+                peer-reviewed papers on computer vision and biometric template
+                analysis.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Publications                                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="publications">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">05.</span> Research & Writing
+        </h2>
+
+        <div class="publications-grid">
+          <div class="pub-card" data-animate="fade-up" data-delay="100">
+            <div class="pub-type">Article</div>
+            <h3>
+              The Human-on-the-Loop: A Practical Guide to Agentic Engineering
+            </h3>
+            <p class="pub-venue">dotnetting.net — Feb 2026</p>
+            <a
+              href="https://dotnetting.net/2026/02/the-human-on-the-loop-a-practical-guide-to-agentic-engineering/"
+              target="_blank"
+              rel="noopener"
+              class="pub-link"
+            >
+              Read Article <i data-lucide="arrow-up-right"></i>
+            </a>
+          </div>
+
+          <div class="pub-card" data-animate="fade-up" data-delay="200">
+            <div class="pub-type">Paper</div>
+            <h3>
+              Fingerprint Template Ageing Revisited — It's the Quality, Stupid!
+            </h3>
+            <p class="pub-venue">Apr 2019</p>
+          </div>
+
+          <div class="pub-card" data-animate="fade-up" data-delay="300">
+            <div class="pub-type">Book Chapter</div>
+            <h3>
+              Improving Regression Models by Dissimilarity Representation of
+              Bio-chemical Data
+            </h3>
+            <p class="pub-venue">Mar 2019</p>
+          </div>
+
+          <div class="pub-card" data-animate="fade-up" data-delay="400">
+            <div class="pub-type">Paper</div>
+            <h3>
+              Minutiae Template Fusion and Its Impact on Fingerprint Matching
+            </h3>
+            <p class="pub-venue">vol.12, n.4, pp.103-114 — 2018</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Contact                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="contact">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">06.</span> Get in Touch
+        </h2>
+
+        <div class="contact-content" data-animate="fade-up" data-delay="200">
+          <p class="contact-text">
+            I'm always open to interesting conversations — whether it's about
+            distributed systems, agentic AI, math, open source, or just a good
+            engineering challenge. Drop me a line.
+          </p>
+
+          <a
+            href="mailto:dev.destbreso@gmail.com"
+            class="btn btn-primary btn-lg"
+          >
+            <i data-lucide="mail"></i> Say Hello
+          </a>
+
+          <div class="social-links">
+            <a
+              href="https://github.com/destbreso"
+              target="_blank"
+              rel="noopener"
+              aria-label="GitHub"
+              class="social-link"
+            >
+              <i data-lucide="github"></i>
+            </a>
+            <a
+              href="https://www.linkedin.com/in/destbreso"
+              target="_blank"
+              rel="noopener"
+              aria-label="LinkedIn"
+              class="social-link"
+            >
+              <i data-lucide="linkedin"></i>
+            </a>
+            <a
+              href="https://twitter.com/destbreso"
+              target="_blank"
+              rel="noopener"
+              aria-label="Twitter"
+              class="social-link"
+            >
+              <i data-lucide="twitter"></i>
+            </a>
+            <a
+              href="mailto:dev.destbreso@gmail.com"
+              aria-label="Email"
+              class="social-link"
+            >
+              <i data-lucide="mail"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Footer                                                      -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <footer>
+      <div class="container">
+        <p>
+          Designed & built by <strong>David Estevez</strong>
+          <span class="footer-sep">·</span>
+          <a
+            href="https://github.com/destbreso/destbreso"
+            target="_blank"
+            rel="noopener"
+            >Source</a
+          >
+        </p>
+        <p class="footer-sub">© 2026 — MIT License</p>
+      </div>
+    </footer>
+
+    <script src="assets/script.js"></script>
+  </body>
+</html>
