@@ -160,6 +160,30 @@ def generate_svg(matrix):
         f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
     )
 
+    # ── Defs ───────────────────────────────────────────────────
+    s.append("<defs>")
+
+    # Scan-line gradient: transparent → accent glow → transparent
+    s.append(
+        '<linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">'
+        '<stop offset="0%"   stop-color="#22d3ee" stop-opacity="0"/>'
+        '<stop offset="40%"  stop-color="#22d3ee" stop-opacity="0.12"/>'
+        '<stop offset="50%"  stop-color="#22d3ee" stop-opacity="0.25"/>'
+        '<stop offset="60%"  stop-color="#22d3ee" stop-opacity="0.12"/>'
+        '<stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>'
+        '</linearGradient>'
+    )
+
+    # Soft glow filter for the scan bar
+    s.append(
+        '<filter id="scanGlow" x="-20%" y="-20%" width="140%" height="140%">'
+        '<feGaussianBlur stdDeviation="3" result="b"/>'
+        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
+        '</filter>'
+    )
+
+    s.append("</defs>")
+
     # Inline style constants (GitHub strips <style> blocks from SVGs)
     title_style = f"font-family:monospace;font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px"
     sub_style = f"font-family:monospace;font-size:8px;fill:{DIM}"
@@ -188,10 +212,15 @@ def generate_svg(matrix):
             f"{h:02d}</text>"
         )
 
-    # Rows — cells with staggered SMIL fade-in + glow pulse on active cells
-    anim_total_dur = 2.8   # seconds to reveal entire grid
+    # ── Rows — cells with cascade reveal + continuous wave breathing ──
+    anim_total_dur = 2.8          # seconds to reveal entire grid
     cell_count = 7 * 24
     per_cell = anim_total_dur / cell_count
+
+    # Wave parameters (continuous after reveal)
+    wave_dur = 5.0                # seconds per full wave cycle
+    max_diag = 23 + 6             # max diagonal index (h + ri)
+    phase_spread = wave_dur * 0.85  # spread phases across this many seconds
 
     for ri in range(7):
         yc = gy + ri * STEP + CELL / 2 + 3
@@ -207,6 +236,7 @@ def generate_svg(matrix):
 
             if val == 0:
                 color = HEAT[0]
+                ratio = 0.0
             else:
                 ratio = val / max_val
                 if ratio <= 0.25:
@@ -226,12 +256,14 @@ def generate_svg(matrix):
                 f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
                 f'rx="3" fill="{color}" opacity="0">'
             )
+
+            # ── Phase 1: cascade reveal (plays once) ──
             # Fade-in from 0 → 1
             s.append(
                 f'<animate attributeName="opacity" from="0" to="1" '
                 f'dur="0.35s" begin="{delay:.3f}s" fill="freeze"/>'
             )
-            # Grow from center (animate x/y/width/height simultaneously)
+            # Grow from center
             half = CELL / 2
             s.append(
                 f'<animate attributeName="x" values="{x + half};{x - 1};{x}" '
@@ -250,16 +282,82 @@ def generate_svg(matrix):
                 f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
             )
 
-            # Active cells get a subtle glow pulse after reveal
-            if val > 0 and ratio > 0.5:
-                pulse_begin = round(anim_total_dur + 0.5, 2)
+            # ── Phase 2: continuous wave breathing (after reveal) ──
+            # All active cells participate; intensity depends on activity level
+            if val > 0:
+                # Diagonal phase offset creates a sweeping wave
+                diag = h + ri
+                phase = round(diag / max_diag * phase_spread, 3)
+                wave_begin = round(anim_total_dur + 0.5 + phase, 3)
+
+                # Higher activity → deeper breathing (more dramatic pulse)
+                if ratio > 0.75:
+                    lo, hi = 0.50, 1.0
+                elif ratio > 0.50:
+                    lo, hi = 0.58, 1.0
+                elif ratio > 0.25:
+                    lo, hi = 0.68, 0.95
+                else:
+                    lo, hi = 0.78, 0.92
+
                 s.append(
                     f'<animate attributeName="opacity" '
-                    f'values="1;0.6;1" dur="3s" '
-                    f'begin="{pulse_begin}s" repeatCount="indefinite"/>'
+                    f'values="{hi};{lo};{hi}" dur="{wave_dur}s" '
+                    f'begin="{wave_begin}s" repeatCount="indefinite"/>'
                 )
 
+                # High-activity cells also get a subtle size pulse
+                if ratio > 0.6:
+                    shrink = round(CELL * 0.92)
+                    grow = CELL
+                    ox = x + (CELL - shrink) // 2
+                    size_begin = round(wave_begin + wave_dur * 0.1, 3)
+                    s.append(
+                        f'<animate attributeName="width" '
+                        f'values="{grow};{shrink};{grow}" dur="{wave_dur}s" '
+                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
+                    )
+                    s.append(
+                        f'<animate attributeName="height" '
+                        f'values="{grow};{shrink};{grow}" dur="{wave_dur}s" '
+                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
+                    )
+                    s.append(
+                        f'<animate attributeName="x" '
+                        f'values="{x};{ox};{x}" dur="{wave_dur}s" '
+                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
+                    )
+                    s.append(
+                        f'<animate attributeName="y" '
+                        f'values="{y};{y + (CELL - shrink) // 2};{y}" '
+                        f'dur="{wave_dur}s" '
+                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
+                    )
+
             s.append("</rect>")
+
+    # ── Scanning light bar (sweeps left → right continuously) ──
+    scan_w = 60  # width of the luminous bar
+    scan_begin = round(anim_total_dur + 0.3, 2)
+    scan_dur = 6.0
+
+    # Clip to grid area
+    s.append(
+        f'<clipPath id="gridClip">'
+        f'<rect x="{gx}" y="{gy}" width="{grid_w}" height="{grid_h}"/>'
+        f'</clipPath>'
+    )
+    s.append(f'<g clip-path="url(#gridClip)">')
+    s.append(
+        f'<rect x="{gx - scan_w}" y="{gy}" '
+        f'width="{scan_w}" height="{grid_h}" '
+        f'fill="url(#scan)" filter="url(#scanGlow)" opacity="0.8">'
+        f'<animateTransform attributeName="transform" type="translate" '
+        f'from="0 0" to="{grid_w + scan_w * 2} 0" '
+        f'dur="{scan_dur}s" begin="{scan_begin}s" repeatCount="indefinite"/>'
+        f'</rect>'
+    )
+    s.append("</g>")
 
     # Legend (right-aligned)
     ly = gy + grid_h + legend_gap + 10
