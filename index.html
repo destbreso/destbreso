@@ -56,6 +56,7 @@
           <a href="#skills" class="nav-link">Skills</a>
           <a href="#projects" class="nav-link">Projects</a>
           <a href="#experience" class="nav-link">Experience</a>
+          <a href="#insights" class="nav-link">Insights</a>
           <a href="#publications" class="nav-link">Blog</a>
           <a
             href="https://destbreso.com"
@@ -621,12 +622,125 @@
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- GitHub Insights                                              -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section id="insights">
+      <div class="container">
+        <h2 class="section-title" data-animate="fade-up">
+          <span class="section-number">05.</span> GitHub Insights
+        </h2>
+
+        <p class="section-subtitle" data-animate="fade-up" data-delay="100">
+          Live data from the GitHub API — how I actually code.
+        </p>
+
+        <!-- Distribution Chart -->
+        <div class="insights-block" data-animate="fade-up" data-delay="200">
+          <div class="insights-block-header">
+            <h3><i data-lucide="bar-chart-3"></i> Commit Distribution</h3>
+            <div class="chart-tabs" id="dist-tabs">
+              <button class="chart-tab active" data-range="days">
+                Last 20 Days
+              </button>
+              <button class="chart-tab" data-range="weeks">By Week</button>
+              <button class="chart-tab" data-range="months">By Month</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="distribution-chart"></canvas>
+            <div class="chart-loading" id="dist-loading">
+              <div class="spinner"></div>
+              <span>Fetching commits…</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="insights-block" data-animate="fade-up" data-delay="300">
+          <div class="insights-block-header">
+            <h3><i data-lucide="grid-3x3"></i> Activity Heatmap</h3>
+            <span class="heatmap-hint">Day of Week × Hour of Day</span>
+          </div>
+          <div class="heatmap-wrapper">
+            <div class="heatmap-y-labels" id="heatmap-y-labels"></div>
+            <div class="heatmap-grid" id="heatmap-grid"></div>
+            <div class="heatmap-x-labels" id="heatmap-x-labels"></div>
+            <div class="chart-loading" id="heatmap-loading">
+              <div class="spinner"></div>
+              <span>Building heatmap…</span>
+            </div>
+          </div>
+          <div class="heatmap-legend">
+            <span class="heatmap-legend-label">Less</span>
+            <div class="heatmap-legend-scale">
+              <span
+                class="heatmap-cell"
+                style="background: var(--bg-card)"
+              ></span>
+              <span
+                class="heatmap-cell"
+                style="background: rgba(34, 211, 238, 0.15)"
+              ></span>
+              <span
+                class="heatmap-cell"
+                style="background: rgba(34, 211, 238, 0.35)"
+              ></span>
+              <span
+                class="heatmap-cell"
+                style="background: rgba(34, 211, 238, 0.6)"
+              ></span>
+              <span
+                class="heatmap-cell"
+                style="background: var(--accent)"
+              ></span>
+            </div>
+            <span class="heatmap-legend-label">More</span>
+          </div>
+        </div>
+
+        <!-- Insight Cards -->
+        <div class="insights-cards" data-animate="fade-up" data-delay="400">
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="clock"></i></div>
+            <span class="insight-value" id="insight-peak-hour">—</span>
+            <span class="insight-label">Peak Coding Hour</span>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="calendar"></i></div>
+            <span class="insight-value" id="insight-peak-day">—</span>
+            <span class="insight-label">Most Active Day</span>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="zap"></i></div>
+            <span class="insight-value" id="insight-streak">—</span>
+            <span class="insight-label">Longest Active Streak</span>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="trending-up"></i></div>
+            <span class="insight-value" id="insight-velocity">—</span>
+            <span class="insight-label">Avg Commits / Week</span>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="moon"></i></div>
+            <span class="insight-value" id="insight-night">—</span>
+            <span class="insight-label">Night Owl Index</span>
+          </div>
+          <div class="insight-card">
+            <div class="insight-icon"><i data-lucide="flame"></i></div>
+            <span class="insight-value" id="insight-focus">—</span>
+            <span class="insight-label">Focus Score</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- Publications                                                -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     <section id="publications">
       <div class="container">
         <h2 class="section-title" data-animate="fade-up">
-          <span class="section-number">05.</span> Blog & Writing
+          <span class="section-number">06.</span> Blog & Writing
         </h2>
 
         <div class="publications-grid">
@@ -747,7 +861,7 @@
     <section id="contact">
       <div class="container">
         <h2 class="section-title" data-animate="fade-up">
-          <span class="section-number">06.</span> Get in Touch
+          <span class="section-number">07.</span> Get in Touch
         </h2>
 
         <div class="contact-content" data-animate="fade-up" data-delay="200">

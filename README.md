@@ -165,9 +165,26 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 <!-- CONTRIBUTION GRAPH -->
 <img src="https://github-readme-activity-graph.vercel.app/graph?username=destbreso&theme=github-dark&hide_border=true&bg_color=0a0a0f&color=22d3ee&line=22d3ee&point=ffffff&area=true&area_color=22d3ee" width="100%" />
 
-<br/>
+</div>
+
+---
+
+### 🧠 Deep Insights
+
+<div align="center">
+
+<!-- PROFILE SUMMARY CARDS — unique visualizations -->
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/profile-details?username=destbreso&theme=github_dark" width="100%" />
+
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/repos-per-language?username=destbreso&theme=github_dark" height="170" />
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/most-commit-language?username=destbreso&theme=github_dark" height="170" />
+
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/stats?username=destbreso&theme=github_dark" height="170" />
+<img src="https://github-profile-summary-cards.vercel.app/api/cards/productive-time?username=destbreso&theme=github_dark&utcOffset=-4" height="170" />
 
 <!-- CONTRIBUTION SNAKE -->
+<br/>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake.svg" />
