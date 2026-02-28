@@ -834,7 +834,7 @@ section {
 /* ── Publications ──────────────────────────────────────────────── */
 .publications-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 
@@ -843,10 +843,30 @@ section {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
-  transition: border-color 0.3s var(--ease);
+  transition: all 0.3s var(--ease);
 }
 .pub-card:hover {
   border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.pub-card.featured-pub {
+  grid-column: 1 / -1;
+  background: linear-gradient(
+    135deg,
+    var(--bg-card) 0%,
+    rgba(34, 211, 238, 0.04) 100%
+  );
+  border-color: rgba(34, 211, 238, 0.15);
+  padding: 32px;
+}
+
+.pub-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 12px;
 }
 
 .pub-type {
@@ -988,7 +1008,10 @@ footer strong {
     grid-column: 1;
   }
   .publications-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pub-card.featured-pub {
+    grid-column: 1 / -1;
   }
   .about-card {
     position: static;
@@ -1024,6 +1047,13 @@ footer strong {
 
   .skills-grid {
     grid-template-columns: 1fr;
+  }
+
+  .publications-grid {
+    grid-template-columns: 1fr;
+  }
+  .pub-card.featured-pub {
+    grid-column: 1;
   }
 
   .hero-cta {

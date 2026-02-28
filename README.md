@@ -10,6 +10,11 @@
 
 <br/>
 
+<!-- PROFILE VIEWS -->
+<img src="https://komarev.com/ghpvc/?username=destbreso&style=for-the-badge&color=0e4f5c&label=PROFILE+VIEWS" />
+
+<br/><br/>
+
 <!-- SOCIAL BADGES -->
 [![Website](https://img.shields.io/badge/🌐_destbreso.com-22d3ee?style=for-the-badge&logoColor=white)](https://destbreso.com)
 [![Blog](https://img.shields.io/badge/📝_Blog-0e4f5c?style=for-the-badge)](https://destbreso.com/blog)
@@ -127,12 +132,13 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 ### ✍️ Latest Writing
 
 <!-- BLOG POSTS -->
-|    | Article                                                                                                                                                               | Where          |
-|----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| 🧠 | **[The Human-on-the-Loop: A Practical Guide to Agentic Engineering](https://dotnetting.net/2026/02/the-human-on-the-loop-a-practical-guide-to-agentic-engineering/)** | dotnetting.net |
-| 🔥 | **[Load Testing: A Complete Guide — from Basics to Chaos Engineering](https://destbreso.com/blog)**                                                                   | destbreso.com  |
-| 🚀 | **[Building a Production Load Testing Lab: A Developer's Journey](https://destbreso.com/blog)**                                                                       | destbreso.com  |
-| 📐 | **[Strategic Approaches to Performance Engineering](https://destbreso.com/blog)**                                                                                     | destbreso.com  |
+|    | Article                                                                                                          | Where         |
+|----|------------------------------------------------------------------------------------------------------------------|---------------|
+| 🔥 | **[Mastering API Load Testing — From Basics to Chaos Engineering](https://destbreso.com/blog)**                  | destbreso.com |
+| 🚀 | **[Building a Production Load Testing Lab: A Developer's Journey](https://destbreso.com/blog)**                  | destbreso.com |
+| 📐 | **[Strategic Approaches to Performance Engineering](https://destbreso.com/blog)**                                | destbreso.com |
+| ⚡ | **[Advanced Traffic Patterns and Chaos Testing](https://destbreso.com/blog)**                                    | destbreso.com |
+| 🔧 | **[Integrating Load Tests with CI/CD Pipelines](https://destbreso.com/blog)**                                   | destbreso.com |
 
 📚 **[Read all articles on destbreso.com →](https://destbreso.com/blog)**
 
@@ -142,8 +148,13 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <div align="center">
 
-<img src="https://github-readme-stats.vercel.app/api?username=destbreso&show_icons=true&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa&ring_color=22d3ee" height="170" />
-<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=destbreso&layout=compact&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&text_color=a1a1aa" height="170" />
+<!-- TROPHY SHELF -->
+<img src="https://github-profile-trophy.vercel.app/?username=destbreso&theme=darkhub&no-bg=true&no-frame=true&column=7&margin-w=12" width="100%" />
+
+<br/>
+
+<img src="https://github-readme-stats.vercel.app/api?username=destbreso&show_icons=true&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa&ring_color=22d3ee&include_all_commits=true&count_private=true" height="170" />
+<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=destbreso&layout=compact&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&text_color=a1a1aa&langs_count=8" height="170" />
 
 <br/>
 
@@ -151,7 +162,38 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <br/>
 
+<!-- CONTRIBUTION GRAPH -->
 <img src="https://github-readme-activity-graph.vercel.app/graph?username=destbreso&theme=github-dark&hide_border=true&bg_color=0a0a0f&color=22d3ee&line=22d3ee&point=ffffff&area=true&area_color=22d3ee" width="100%" />
+
+<br/>
+
+<!-- CONTRIBUTION SNAKE -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake.svg" />
+  <img alt="github contribution snake animation" src="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" width="100%" />
+</picture>
+
+</div>
+
+---
+
+### 📌 Pinned Repositories
+
+<div align="center">
+
+<a href="https://github.com/destbreso/agentic-lab">
+  <img src="https://github-readme-stats.vercel.app/api/pin/?username=destbreso&repo=agentic-lab&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa" />
+</a>
+<a href="https://github.com/destbreso/load-testing-lab">
+  <img src="https://github-readme-stats.vercel.app/api/pin/?username=destbreso&repo=load-testing-lab&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa" />
+</a>
+<a href="https://github.com/destbreso/cv-generator">
+  <img src="https://github-readme-stats.vercel.app/api/pin/?username=destbreso&repo=cv-generator&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa" />
+</a>
+<a href="https://github.com/destbreso/llm-worker-lab">
+  <img src="https://github-readme-stats.vercel.app/api/pin/?username=destbreso&repo=llm-worker-lab&theme=github_dark&hide_border=true&bg_color=0a0a0f&title_color=22d3ee&icon_color=22d3ee&text_color=a1a1aa" />
+</a>
 
 </div>
 
