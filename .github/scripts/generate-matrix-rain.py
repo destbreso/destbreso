@@ -58,8 +58,8 @@ CHARS = list(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "{}[]|/:;=+-*#$%?!"
 )
-CHAR_SIZE = 9       # font-size px for characters
-CHAR_STEP = 11      # vertical px spacing between chars
+CHAR_SIZE = 6      # font-size px for characters
+CHAR_STEP = 9      # vertical px spacing between chars
 
 
 def xml_esc(ch):
