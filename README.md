@@ -173,6 +173,11 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <div align="center">
 
+<!-- MATRIX RAIN — Code rain that fills/drains the contribution graph -->
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/matrix-rain.svg" width="100%" alt="Matrix rain contribution graph" />
+
+<br/>
+
 <!-- TETRIS CONTRIBUTIONS — 100% custom, generated daily via GitHub Actions -->
 <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/tetris-contributions.svg" width="100%" alt="Tetris-style contribution graph" />
 
@@ -193,13 +198,13 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 <img src="https://github-profile-summary-cards.vercel.app/api/cards/productive-time?username=destbreso&theme=github_dark&utcOffset=-4" height="170" />
 
 <!-- CONTRIBUTION SNAKE -->
-<!-- <br/>
+<br/>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake.svg" />
   <img alt="github contribution snake animation" src="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" width="100%" />
-</picture> -->
+</picture>
 
 </div>
 

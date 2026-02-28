@@ -42,6 +42,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/generate-heatmap.py
 
+      - name: Generate Matrix Rain SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-matrix-rain.py
+
       # ── Push all SVGs to output branch ───────────────────────────
       - name: Deploy to output branch
         uses: crazy-max/ghaction-github-pages@v3.1.0
