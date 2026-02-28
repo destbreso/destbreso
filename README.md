@@ -132,13 +132,13 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 ### ✍️ Latest Writing
 
 <!-- BLOG POSTS -->
-|    | Article                                                                                                          | Where         |
-|----|------------------------------------------------------------------------------------------------------------------|---------------|
-| 🔥 | **[Mastering API Load Testing — From Basics to Chaos Engineering](https://destbreso.com/blog)**                  | destbreso.com |
-| 🚀 | **[Building a Production Load Testing Lab: A Developer's Journey](https://destbreso.com/blog)**                  | destbreso.com |
-| 📐 | **[Strategic Approaches to Performance Engineering](https://destbreso.com/blog)**                                | destbreso.com |
-| ⚡ | **[Advanced Traffic Patterns and Chaos Testing](https://destbreso.com/blog)**                                    | destbreso.com |
-| 🔧 | **[Integrating Load Tests with CI/CD Pipelines](https://destbreso.com/blog)**                                   | destbreso.com |
+|    | Article                                                                                         | Where         |
+|----|-------------------------------------------------------------------------------------------------|---------------|
+| 🔥 | **[Mastering API Load Testing — From Basics to Chaos Engineering](https://destbreso.com/blog)** | destbreso.com |
+| 🚀 | **[Building a Production Load Testing Lab: A Developer's Journey](https://destbreso.com/blog)** | destbreso.com |
+| 📐 | **[Strategic Approaches to Performance Engineering](https://destbreso.com/blog)**               | destbreso.com |
+| ⚡  | **[Advanced Traffic Patterns and Chaos Testing](https://destbreso.com/blog)**                   | destbreso.com |
+| 🔧 | **[Integrating Load Tests with CI/CD Pipelines](https://destbreso.com/blog)**                   | destbreso.com |
 
 📚 **[Read all articles on destbreso.com →](https://destbreso.com/blog)**
 
@@ -193,13 +193,13 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 <img src="https://github-profile-summary-cards.vercel.app/api/cards/productive-time?username=destbreso&theme=github_dark&utcOffset=-4" height="170" />
 
 <!-- CONTRIBUTION SNAKE -->
-<br/>
+<!-- <br/>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake.svg" />
   <img alt="github contribution snake animation" src="https://raw.githubusercontent.com/destbreso/destbreso/output/github-snake-dark.svg" width="100%" />
-</picture>
+</picture> -->
 
 </div>
 
