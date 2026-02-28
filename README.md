@@ -174,7 +174,7 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 <div align="center">
 
 <!-- MATRIX RAIN — Code rain that fills/drains the contribution graph -->
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/matrix-rain.svg" width="100%" alt="Matrix rain contribution graph" />
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/matrix-rain.svg?v=2" width="100%" alt="Matrix rain contribution graph" />
 
 <br/>
 
@@ -184,7 +184,7 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 <br/>
 
 <!-- ACTIVITY HEATMAP — Day of Week × Hour of Day -->
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/activity-heatmap.svg" width="100%" alt="Activity heatmap (day × hour)" />
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/activity-heatmap.svg?v=2" width="100%" alt="Activity heatmap (day × hour)" />
 
 <br/>
 
