@@ -79,6 +79,39 @@
       </div>
     </section>
 
+    <!-- ═══ CONTRIBUTION GRAPH (real GitHub data) ═══════════════ -->
+    <section id="contributions" data-animate="fade-up">
+      <div class="container">
+        <div class="dash-card">
+          <div class="card-header">
+            <h2><i data-lucide="git-commit-horizontal"></i> Contributions</h2>
+            <span class="card-hint" id="contrib-total"></span>
+          </div>
+          <div class="contrib-wrap">
+            <div class="contrib-months" id="contrib-months"></div>
+            <div class="contrib-body">
+              <div class="contrib-days" id="contrib-days"></div>
+              <div class="contrib-grid" id="contrib-grid"></div>
+            </div>
+            <div class="chart-loading" id="contrib-loading">
+              <div class="spinner"></div>
+            </div>
+          </div>
+          <div class="hm-legend" style="margin-top: 12px">
+            <span>Less</span>
+            <div class="hm-scale">
+              <i style="background: rgba(255, 255, 255, 0.03)"></i>
+              <i style="background: rgba(34, 211, 238, 0.15)"></i>
+              <i style="background: rgba(34, 211, 238, 0.35)"></i>
+              <i style="background: rgba(34, 211, 238, 0.6)"></i>
+              <i style="background: var(--accent)"></i>
+            </div>
+            <span>More</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ═══ COMMIT DISTRIBUTION ═══════════════════════════════════ -->
     <section id="distribution" data-animate="fade-up">
       <div class="container">
@@ -90,7 +123,7 @@
                 30 Days
               </button>
               <button class="chart-tab" data-range="weeks">Weeks</button>
-              <button class="chart-tab" data-range="months">Months</button>
+              <button class="chart-tab" data-range="months">12 Months</button>
             </div>
           </div>
           <div class="chart-box" style="height: 220px">
@@ -224,7 +257,9 @@
             >Source</a
           >
         </p>
-        <p class="foot-sub">Data from GitHub REST API · © 2025</p>
+        <p class="foot-sub">
+          Data from GitHub REST API + Contributions API · © 2025
+        </p>
       </div>
     </footer>
 

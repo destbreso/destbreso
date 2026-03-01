@@ -336,7 +336,7 @@ section {
 /* ── Stats Grid ───────────────────────────────────────────────── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 14px;
 }
 
@@ -672,6 +672,102 @@ section {
   border-radius: 2px;
 }
 
+/* ── Contribution Graph (GitHub-style) ────────────────────────── */
+.contrib-wrap {
+  position: relative;
+  min-height: 140px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.contrib-months {
+  display: flex;
+  padding-left: 32px;
+  margin-bottom: 4px;
+  gap: 0;
+}
+.contrib-months span {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  text-align: left;
+}
+.contrib-body {
+  display: flex;
+  gap: 4px;
+}
+.contrib-days {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  width: 28px;
+  flex-shrink: 0;
+}
+.contrib-days span {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  height: var(--cell-size, 13px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2px;
+}
+.contrib-grid {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell-size, 13px));
+  grid-auto-flow: column;
+  grid-auto-columns: var(--cell-size, 13px);
+  gap: 3px;
+  flex: 1;
+}
+.contrib-cell {
+  width: var(--cell-size, 13px);
+  height: var(--cell-size, 13px);
+  border-radius: 2.5px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.15s var(--ease);
+  cursor: default;
+  position: relative;
+}
+.contrib-cell:hover {
+  transform: scale(1.6);
+  z-index: 10;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
+}
+.contrib-cell.lv-1 {
+  background: rgba(34, 211, 238, 0.15);
+}
+.contrib-cell.lv-2 {
+  background: rgba(34, 211, 238, 0.35);
+}
+.contrib-cell.lv-3 {
+  background: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 5px rgba(34, 211, 238, 0.2);
+}
+.contrib-cell.lv-4 {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+.contrib-cell[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 20;
+  pointer-events: none;
+}
+
 /* ── Language Chart ───────────────────────────────────────────── */
 .lang-wrap {
   display: flex;
@@ -945,6 +1041,7 @@ footer strong {
 }
 
 /* ── Cascade Section Dividers ──────────────────────────────────── */
+#contributions,
 #distribution,
 #analytics,
 #patterns,
@@ -955,6 +1052,7 @@ footer {
 }
 
 /* Glowing horizontal line */
+#contributions::before,
 #distribution::before,
 #analytics::before,
 #patterns::before,
@@ -982,6 +1080,7 @@ footer::before {
 }
 
 /* Scanning beam sweeping across */
+#contributions::after,
 #distribution::after,
 #analytics::after,
 #patterns::after,
@@ -1010,20 +1109,23 @@ footer::after {
 }
 
 /* Stagger scan beams for cascading wave down page */
+#distribution::after {
+  animation-delay: 0.9s;
+}
 #analytics::after {
-  animation-delay: 1s;
+  animation-delay: 1.8s;
 }
 #patterns::after {
-  animation-delay: 2s;
+  animation-delay: 2.7s;
 }
 #repos::after {
-  animation-delay: 3s;
+  animation-delay: 3.6s;
 }
 #insights::after {
-  animation-delay: 4s;
+  animation-delay: 4.5s;
 }
 footer::after {
-  animation-delay: 5s;
+  animation-delay: 5.4s;
 }
 
 @keyframes scan-beam {
@@ -1137,6 +1239,17 @@ footer::after {
   }
   .terminal-window {
     max-width: 400px;
+  }
+  .contrib-grid {
+    --cell-size: 10px;
+    gap: 2px;
+  }
+  .contrib-days span {
+    height: 10px;
+    font-size: 0.5rem;
+  }
+  .contrib-months span {
+    font-size: 0.5rem;
   }
 }
 @media (max-width: 480px) {

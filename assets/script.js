@@ -13,6 +13,8 @@
   let ghRepos = [];
   let ghEvents = [];
   let commits = [];
+  let contributions = []; // {date,count,level}[] from contributions API
+  let contribTotal = 0;
 
   document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) lucide.createIcons();
@@ -175,31 +177,32 @@
   // ════════════════════════════════════════════════════════════
   function initCascadeDividers() {
     const targets = document.querySelectorAll(
-      '#distribution, #analytics, #patterns, #repos, #insights, footer'
+      "#contributions, #distribution, #analytics, #patterns, #repos, #insights, footer",
     );
-    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF{}[]';
+    const chars =
+      "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF{}[]";
     const colors = [
-      'rgba(34,211,238,0.55)',
-      'rgba(34,211,238,0.35)',
-      'rgba(0,255,65,0.3)',
-      'rgba(34,211,238,0.45)',
-      'rgba(167,139,250,0.3)',
+      "rgba(34,211,238,0.55)",
+      "rgba(34,211,238,0.35)",
+      "rgba(0,255,65,0.3)",
+      "rgba(34,211,238,0.45)",
+      "rgba(167,139,250,0.3)",
     ];
 
     targets.forEach((section) => {
-      const wrap = document.createElement('div');
-      wrap.className = 'cascade-wrap';
+      const wrap = document.createElement("div");
+      wrap.className = "cascade-wrap";
       section.prepend(wrap);
 
       function spawnDrop() {
         if (document.hidden) return;
-        const span = document.createElement('span');
-        span.className = 'cascade-char';
+        const span = document.createElement("span");
+        span.className = "cascade-char";
         span.textContent = chars[Math.floor(Math.random() * chars.length)];
-        span.style.left = (3 + Math.random() * 94) + '%';
+        span.style.left = 3 + Math.random() * 94 + "%";
         span.style.color = colors[Math.floor(Math.random() * colors.length)];
         const dur = 1.0 + Math.random() * 1.8;
-        span.style.animationDuration = dur + 's';
+        span.style.animationDuration = dur + "s";
         wrap.appendChild(span);
         setTimeout(() => span.remove(), dur * 1000 + 50);
       }
@@ -214,7 +217,7 @@
   // ════════════════════════════════════════════════════════════
   async function fetchGitHubData() {
     try {
-      const [userData, reposData] = await Promise.all([
+      const [userData, reposData, contribData] = await Promise.all([
         fetch("https://api.github.com/users/" + GH_USER).then((r) =>
           r.ok ? r.json() : null,
         ),
@@ -223,6 +226,11 @@
             GH_USER +
             "/repos?per_page=100&sort=pushed",
         ).then((r) => (r.ok ? r.json() : [])),
+        fetch(
+          "https://github-contributions-api.jogruber.de/v4/" +
+            GH_USER +
+            "?y=last",
+        ).then((r) => (r.ok ? r.json() : null)),
       ]);
 
       ghUser = userData;
@@ -230,9 +238,20 @@
         ? reposData.filter((r) => !r.fork)
         : [];
 
+      // Parse contributions API
+      if (contribData && contribData.contributions) {
+        contributions = contribData.contributions;
+        contribTotal = contribData.total
+          ? contribData.total.lastYear ||
+            contribData.total[Object.keys(contribData.total).pop()] ||
+            0
+          : contributions.reduce((s, c) => s + c.count, 0);
+      }
+
       ghEvents = await fetchAllEvents();
       commits = extractCommits(ghEvents.filter((e) => e.type === "PushEvent"));
 
+      renderContribGraph();
       renderStats();
       renderDistribution("days");
       initDistTabs();
@@ -290,6 +309,168 @@
   }
 
   // ════════════════════════════════════════════════════════════
+  // 4b. CONTRIBUTION GRAPH (GitHub-style)
+  // ════════════════════════════════════════════════════════════
+  function renderContribGraph() {
+    const grid = document.getElementById("contrib-grid");
+    const monthsEl = document.getElementById("contrib-months");
+    const daysEl = document.getElementById("contrib-days");
+    const totalEl = document.getElementById("contrib-total");
+    const loading = document.getElementById("contrib-loading");
+    if (!grid) return;
+    if (loading) loading.classList.add("hidden");
+
+    if (!contributions.length) {
+      grid.innerHTML =
+        '<span style="color:var(--text-dim);font-size:.8rem">No contribution data</span>';
+      return;
+    }
+
+    // Show total
+    if (totalEl) {
+      totalEl.textContent = contribTotal.toLocaleString() + " in the last year";
+    }
+
+    // Sort contributions ascending by date
+    const sorted = [...contributions].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+
+    // Find the first Sunday on or before the first date to align the grid
+    const firstDate = new Date(sorted[0].date + "T00:00:00");
+    const startDate = new Date(firstDate);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // back to Sunday
+
+    const lastDate = new Date(sorted[sorted.length - 1].date + "T00:00:00");
+
+    // Build date->contrib lookup
+    const lookup = {};
+    sorted.forEach((c) => {
+      lookup[c.date] = c;
+    });
+
+    // Day labels (Mon, Wed, Fri)
+    if (daysEl) {
+      const dayLabels = ["", "Mon", "", "Wed", "", "Fri", ""];
+      daysEl.innerHTML = dayLabels
+        .map((d) => "<span>" + d + "</span>")
+        .join("");
+    }
+
+    // Build weeks and cells
+    grid.innerHTML = "";
+    const weeks = [];
+    const cur = new Date(startDate);
+
+    while (cur <= lastDate) {
+      const dateStr =
+        cur.getFullYear() +
+        "-" +
+        String(cur.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(cur.getDate()).padStart(2, "0");
+
+      const entry = lookup[dateStr];
+      const count = entry ? entry.count : 0;
+      const level = entry ? entry.level : 0;
+
+      const cell = document.createElement("div");
+      cell.className = "contrib-cell" + (level > 0 ? " lv-" + level : "");
+
+      // Format tooltip date
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const tipDate =
+        dayNames[cur.getDay()] +
+        ", " +
+        monthNames[cur.getMonth()] +
+        " " +
+        cur.getDate() +
+        ", " +
+        cur.getFullYear();
+      cell.setAttribute(
+        "data-tip",
+        count === 0
+          ? "No contributions on " + tipDate
+          : count + " contribution" + (count > 1 ? "s" : "") + " on " + tipDate,
+      );
+
+      // Track week for month labels
+      const weekIdx = Math.floor((cur - startDate) / (7 * 86400000));
+      if (!weeks[weekIdx])
+        weeks[weekIdx] = {
+          month: cur.getMonth(),
+          year: cur.getFullYear(),
+          day: cur.getDate(),
+        };
+
+      grid.appendChild(cell);
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    // Month labels
+    if (monthsEl) {
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const totalWeeks = weeks.length;
+
+      // Calculate width per week
+      monthsEl.innerHTML = "";
+      let lastMonth = -1;
+      const monthSpans = [];
+
+      for (let w = 0; w < totalWeeks; w++) {
+        const wk = weeks[w];
+        if (!wk) continue;
+        if (wk.month !== lastMonth) {
+          monthSpans.push({ month: wk.month, startWeek: w });
+          lastMonth = wk.month;
+        }
+      }
+
+      // Render month labels with proportional widths
+      monthSpans.forEach((ms, idx) => {
+        const nextStart =
+          idx + 1 < monthSpans.length
+            ? monthSpans[idx + 1].startWeek
+            : totalWeeks;
+        const span = document.createElement("span");
+        span.textContent = monthNames[ms.month];
+        // Each week is one column: cell-size + gap
+        const weekCols = nextStart - ms.startWeek;
+        span.style.width =
+          "calc((" + weekCols + " * (var(--cell-size, 13px) + 3px)))";
+        monthsEl.appendChild(span);
+      });
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
   // 5. STATS CARDS
   // ════════════════════════════════════════════════════════════
   function renderStats() {
@@ -301,38 +482,74 @@
       0,
     );
 
-    // Streak
-    const daySet = new Set(commits.map((c) => c.toISOString().slice(0, 10)));
-    const sorted = [...daySet].sort();
-    let maxStreak = sorted.length ? 1 : 0,
-      cur = 1;
-    for (let i = 1; i < sorted.length; i++) {
-      const diff = (new Date(sorted[i]) - new Date(sorted[i - 1])) / 86400000;
-      if (diff === 1) {
-        cur++;
-        maxStreak = Math.max(maxStreak, cur);
-      } else cur = 1;
+    // Streak from contributions (real data)
+    let maxStreak = 0,
+      curStreak = 0;
+    if (contributions.length) {
+      const sorted = [...contributions].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i].count > 0) {
+          curStreak++;
+          maxStreak = Math.max(maxStreak, curStreak);
+        } else {
+          curStreak = 0;
+        }
+      }
+    } else {
+      // Fallback to events
+      const daySet = new Set(commits.map((c) => c.toISOString().slice(0, 10)));
+      const sortedDays = [...daySet].sort();
+      maxStreak = sortedDays.length ? 1 : 0;
+      let cur = 1;
+      for (let i = 1; i < sortedDays.length; i++) {
+        const diff =
+          (new Date(sortedDays[i]) - new Date(sortedDays[i - 1])) / 86400000;
+        if (diff === 1) {
+          cur++;
+          maxStreak = Math.max(maxStreak, cur);
+        } else cur = 1;
+      }
     }
 
-    // Avg per week
-    const weeks = new Set(
-      commits.map((c) => {
-        const d = new Date(c);
-        return d.getFullYear() + "-W" + getWeekNum(d);
-      }),
-    );
-    const avgPerWeek = weeks.size ? Math.round(commits.length / weeks.size) : 0;
+    // Avg per week from contributions
+    const totalContribs = contribTotal || commits.length;
+    const weeksOfData = contributions.length
+      ? Math.ceil(contributions.length / 7)
+      : 1;
+    const avgPerWeek = Math.round(totalContribs / Math.max(weeksOfData, 1));
+
+    // Current streak (from end)
+    let currentStreak = 0;
+    if (contributions.length) {
+      const sorted = [...contributions].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      );
+      // skip today if 0 (day not over)
+      const startIdx = sorted[0].count === 0 ? 1 : 0;
+      for (let i = startIdx; i < sorted.length; i++) {
+        if (sorted[i].count > 0) currentStreak++;
+        else break;
+      }
+    }
 
     const stats = [
       { icon: "folder-git-2", value: ghRepos.length, label: "Public Repos" },
       {
         icon: "git-commit-horizontal",
-        value: commits.length,
-        label: "Recent Commits",
+        value: totalContribs,
+        label: "Contributions (1y)",
       },
       { icon: "star", value: totalStars, label: "Total Stars" },
-      { icon: "flame", value: maxStreak, label: "Day Streak", suffix: "d" },
-      { icon: "trending-up", value: avgPerWeek, label: "Commits / Week" },
+      { icon: "flame", value: maxStreak, label: "Best Streak", suffix: "d" },
+      {
+        icon: "zap",
+        value: currentStreak,
+        label: "Current Streak",
+        suffix: "d",
+      },
+      { icon: "trending-up", value: avgPerWeek, label: "Avg / Week" },
       {
         icon: "users",
         value: ghUser ? ghUser.followers : 0,
@@ -480,17 +697,27 @@
     const map = {};
     const now = new Date();
 
+    // Build a lookup from contributions for quick access
+    const contribMap = {};
+    contributions.forEach((c) => {
+      contribMap[c.date] = c.count;
+    });
+    const hasContrib = contributions.length > 0;
+
     if (range === "days") {
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
         const k = d.toISOString().slice(0, 10);
-        map[k] = { label: d.getMonth() + 1 + "/" + d.getDate(), count: 0 };
+        const count = hasContrib ? contribMap[k] || 0 : 0;
+        map[k] = { label: d.getMonth() + 1 + "/" + d.getDate(), count: count };
       }
-      data.forEach((c) => {
-        const k = c.toISOString().slice(0, 10);
-        if (map[k]) map[k].count++;
-      });
+      if (!hasContrib) {
+        data.forEach((c) => {
+          const k = c.toISOString().slice(0, 10);
+          if (map[k]) map[k].count++;
+        });
+      }
     } else if (range === "weeks") {
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now);
@@ -500,12 +727,22 @@
         const k = ws.toISOString().slice(0, 10);
         if (!map[k]) map[k] = { label: "W" + getWeekNum(ws), count: 0 };
       }
-      data.forEach((c) => {
-        const ws = new Date(c);
-        ws.setDate(ws.getDate() - ws.getDay());
-        const k = ws.toISOString().slice(0, 10);
-        if (map[k]) map[k].count++;
-      });
+      if (hasContrib) {
+        contributions.forEach((c) => {
+          const d = new Date(c.date + "T00:00:00");
+          const ws = new Date(d);
+          ws.setDate(ws.getDate() - ws.getDay());
+          const k = ws.toISOString().slice(0, 10);
+          if (map[k]) map[k].count += c.count;
+        });
+      } else {
+        data.forEach((c) => {
+          const ws = new Date(c);
+          ws.setDate(ws.getDate() - ws.getDay());
+          const k = ws.toISOString().slice(0, 10);
+          if (map[k]) map[k].count++;
+        });
+      }
     } else {
       const months = [
         "Jan",
@@ -521,15 +758,22 @@
         "Nov",
         "Dec",
       ];
-      for (let i = 5; i >= 0; i--) {
+      for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const k = d.toISOString().slice(0, 7);
         map[k] = { label: months[d.getMonth()], count: 0 };
       }
-      data.forEach((c) => {
-        const k = c.toISOString().slice(0, 7);
-        if (map[k]) map[k].count++;
-      });
+      if (hasContrib) {
+        contributions.forEach((c) => {
+          const k = c.date.slice(0, 7);
+          if (map[k]) map[k].count += c.count;
+        });
+      } else {
+        data.forEach((c) => {
+          const k = c.toISOString().slice(0, 7);
+          if (map[k]) map[k].count++;
+        });
+      }
     }
     return Object.values(map);
   }
@@ -946,23 +1190,28 @@
   // ════════════════════════════════════════════════════════════
   function renderInsights() {
     const grid = document.getElementById("insights-grid");
-    if (!grid || !commits.length) return;
+    if (!grid) return;
 
-    // Peak hour
-    const hours = Array(24).fill(0);
-    commits.forEach((c) => hours[c.getHours()]++);
-    const peakH = hours.indexOf(Math.max(...hours));
-    const peakStr =
-      peakH === 0
-        ? "12 AM"
-        : peakH < 12
-          ? peakH + " AM"
-          : peakH === 12
-            ? "12 PM"
-            : peakH - 12 + " PM";
+    // Use contributions-based hourly data if events exist, else skip time insights
+    const hasTime = commits.length > 0;
 
-    // Peak day
-    const days = Array(7).fill(0);
+    // Peak hour (from events — only source with hourly data)
+    let peakStr = "—";
+    if (hasTime) {
+      const hours = Array(24).fill(0);
+      commits.forEach((c) => hours[c.getHours()]++);
+      const peakH = hours.indexOf(Math.max(...hours));
+      peakStr =
+        peakH === 0
+          ? "12 AM"
+          : peakH < 12
+            ? peakH + " AM"
+            : peakH === 12
+              ? "12 PM"
+              : peakH - 12 + " PM";
+    }
+
+    // Peak day from contributions (which day of week has most contributions)
     const dayNames = [
       "Sunday",
       "Monday",
@@ -972,23 +1221,59 @@
       "Friday",
       "Saturday",
     ];
-    commits.forEach((c) => days[c.getDay()]++);
-    const peakD = days.indexOf(Math.max(...days));
-
-    // Night owl (10pm–6am)
-    const night = commits.filter((c) => {
-      const h = c.getHours();
-      return h >= 22 || h < 6;
-    });
-    const nightPct = Math.round((night.length / commits.length) * 100);
-
-    // Focus (best 3h window)
-    let maxWin = 0;
-    for (let s = 0; s < 24; s++) {
-      const w = hours[s] + hours[(s + 1) % 24] + hours[(s + 2) % 24];
-      maxWin = Math.max(maxWin, w);
+    let peakDayName = "—";
+    if (contributions.length) {
+      const dayTotals = Array(7).fill(0);
+      contributions.forEach((c) => {
+        const d = new Date(c.date + "T00:00:00");
+        dayTotals[d.getDay()] += c.count;
+      });
+      const peakD = dayTotals.indexOf(Math.max(...dayTotals));
+      peakDayName = dayNames[peakD];
+    } else if (hasTime) {
+      const days = Array(7).fill(0);
+      commits.forEach((c) => days[c.getDay()]++);
+      peakDayName = dayNames[days.indexOf(Math.max(...days))];
     }
-    const focusPct = Math.round((maxWin / commits.length) * 100);
+
+    // Night owl (10pm–6am) from events
+    let nightPct = 0;
+    if (hasTime) {
+      const night = commits.filter((c) => {
+        const h = c.getHours();
+        return h >= 22 || h < 6;
+      });
+      nightPct = Math.round((night.length / commits.length) * 100);
+    }
+
+    // Most active month from contributions
+    let bestMonth = "—";
+    if (contributions.length) {
+      const monthTotals = {};
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      contributions.forEach((c) => {
+        const m = c.date.slice(0, 7);
+        monthTotals[m] = (monthTotals[m] || 0) + c.count;
+      });
+      const sorted = Object.entries(monthTotals).sort((a, b) => b[1] - a[1]);
+      if (sorted.length) {
+        const d = new Date(sorted[0][0] + "-01T00:00:00");
+        bestMonth = monthNames[d.getMonth()];
+      }
+    }
 
     // Top language
     const langCounts = {};
@@ -999,13 +1284,20 @@
     const topLang =
       Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
+    // Active days % from contributions
+    let activeDaysPct = 0;
+    if (contributions.length) {
+      const activeDays = contributions.filter((c) => c.count > 0).length;
+      activeDaysPct = Math.round((activeDays / contributions.length) * 100);
+    }
+
     const items = [
       { icon: "clock", value: peakStr, label: "Peak Coding Hour" },
-      { icon: "calendar", value: dayNames[peakD], label: "Most Active Day" },
+      { icon: "calendar", value: peakDayName, label: "Most Active Day" },
       { icon: "moon", value: nightPct + "%", label: "Night Owl Index" },
-      { icon: "target", value: focusPct + "%", label: "Focus Score" },
+      { icon: "trophy", value: bestMonth, label: "Best Month" },
       { icon: "code-2", value: topLang, label: "Top Language" },
-      { icon: "activity", value: ghEvents.length, label: "API Events" },
+      { icon: "percent", value: activeDaysPct + "%", label: "Active Days" },
     ];
 
     grid.innerHTML = items
