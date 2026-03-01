@@ -116,17 +116,16 @@ def gen_column_wave(norm, col_idx, n_samples=48):
     rng = random.Random(col_idx * 7 + 13)
     n_bumps = max(2, min(4, round(2 + norm * 2)))
 
-    # Compress peak for tall columns: norm=1→peak≈0.55, norm=0.2→peak≈0.18
-    # This means tall bars fill to ~55 % of their max height per bump,
-    # requiring multiple bumps to accumulate, which looks far more natural.
+    # Bars fill high: norm=1→peak≈0.93, norm=0.3→peak≈0.35
+    # Tall columns nearly saturate; short ones still show meaningful fill.
     raw_peak = norm + rng.uniform(-0.04, 0.04)
-    peak = max(0.12, min(0.6, raw_peak * 0.55 + 0.02))
+    peak = max(0.18, min(0.95, raw_peak * 0.88 + 0.07))
 
     bumps = []
     for b in range(n_bumps):
         c = (b + 0.5) / n_bumps + rng.uniform(-0.06, 0.06)
         c = c % 1.0
-        w = 0.85 / n_bumps
+        w = 0.92 / n_bumps
         bumps.append((c, w))
 
     dt = 1.0 / n_samples
@@ -138,14 +137,14 @@ def gen_column_wave(norm, col_idx, n_samples=48):
             d = t - c
             if d > 0.5:  d -= 1.0
             if d < -0.5: d += 1.0
-            fw = w * 0.30          # fill ramp  (30 % of bump width — slower)
-            dw = w * 0.70          # drain ramp (70 %)
+            fw = w * 0.40          # fill ramp  (40 % of bump width)
+            dw = w * 0.60          # drain ramp (60 %)
             if -fw < d <= 0:
                 frac = 1.0 - abs(d) / fw
-                val = max(val, peak * frac ** 0.7)   # gentler curve
+                val = max(val, peak * frac ** 0.5)   # faster fill curve
             elif 0 < d < dw:
                 frac = d / dw
-                val = max(val, peak * (1.0 - frac) ** 2.0)
+                val = max(val, peak * (1.0 - frac) ** 1.5)  # slower drain
         pts.append((t, val))
 
     pts[-1] = (1.0, pts[0][1])          # seamless loop
@@ -239,26 +238,7 @@ def generate_svg(cal):
         f'style="{sub}">{total:,} commits</text>'
     )
 
-    # ── bar zone background (same base color as sky, subtle animated tint) ─
-    # Thin border — very faint
-    s.append(
-        f'<rect x="{gx - 1}" y="{bar_top - 1}" width="{grid_w + 2}" '
-        f'height="{BAR_MAX_H + 2}" rx="2" fill="none" '
-        f'stroke="{BORDER}" stroke-opacity="0.15"/>'
-    )
-    # Static base – same color as main BG so sky & bar zone are seamless
-    s.append(
-        f'<rect x="{gx}" y="{bar_top}" width="{grid_w}" '
-        f'height="{BAR_MAX_H}" fill="{BG}" rx="1"/>'
-    )
-    # Subtle animated overlay: faint green tint that breathes
-    s.append(
-        f'<rect x="{gx}" y="{bar_top}" width="{grid_w}" '
-        f'height="{BAR_MAX_H}" fill="{RAIN_DIM}" opacity="0.025" rx="1">'
-        f'<animate attributeName="opacity" values="0.025;0.055;0.025" '
-        f'dur="8s" repeatCount="indefinite"/>'
-        f'</rect>'
-    )
+    # ── bar zone background — completely seamless with sky (no border, no tint) ─
 
     # ── ghost silhouette (always visible) ─────────────────────
     for i, (h_norm, wt) in enumerate(zip(norms, week_totals)):
