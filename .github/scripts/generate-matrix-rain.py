@@ -29,7 +29,6 @@ DIST = "dist"
 
 # ── Palette ───────────────────────────────────────────────────
 BG       = "#0a0a0f"
-BOARD    = "#0d0d14"
 BORDER   = "#1e1e2a"
 RAIN_BRT = "#00ff41"    # Bright head / fill
 RAIN_MED = "#00cc33"    # Mid trail
@@ -104,17 +103,24 @@ def skt(times):
     return ";".join(str(k) for k in kt)
 
 
-def gen_column_wave(norm, col_idx, n_samples=36):
+def gen_column_wave(norm, col_idx, n_samples=48):
     """Generate a smooth fill/drain wave for one column.
 
     Returns list of (t, v) where t ∈ [0,1] and v ∈ [0,1].
     v = fill fraction (0 = ghost residue, 1 = full bar).
-    Loops seamlessly.  Higher *norm* → taller peaks, more bumps.
-    Each bump: fast fill (rain pouring) then slow exponential drain.
+    Loops seamlessly.
+
+    Tall columns (high norm) are *slower* to fill: peak is compressed so
+    they never jump to 100% instantly, and the fill ramp is more gradual.
     """
     rng = random.Random(col_idx * 7 + 13)
-    n_bumps = max(2, min(5, round(2 + norm * 3)))
-    peak = max(0.15, min(1.0, norm + rng.uniform(-0.05, 0.05)))
+    n_bumps = max(2, min(4, round(2 + norm * 2)))
+
+    # Compress peak for tall columns: norm=1→peak≈0.55, norm=0.2→peak≈0.18
+    # This means tall bars fill to ~55 % of their max height per bump,
+    # requiring multiple bumps to accumulate, which looks far more natural.
+    raw_peak = norm + rng.uniform(-0.04, 0.04)
+    peak = max(0.12, min(0.6, raw_peak * 0.55 + 0.02))
 
     bumps = []
     for b in range(n_bumps):
@@ -132,14 +138,14 @@ def gen_column_wave(norm, col_idx, n_samples=36):
             d = t - c
             if d > 0.5:  d -= 1.0
             if d < -0.5: d += 1.0
-            fw = w * 0.20          # fast fill (20 % of bump width)
-            dw = w * 0.80          # slow drain (80 %)
+            fw = w * 0.30          # fill ramp  (30 % of bump width — slower)
+            dw = w * 0.70          # drain ramp (70 %)
             if -fw < d <= 0:
                 frac = 1.0 - abs(d) / fw
-                val = max(val, peak * frac ** 0.5)
+                val = max(val, peak * frac ** 0.7)   # gentler curve
             elif 0 < d < dw:
                 frac = d / dw
-                val = max(val, peak * (1.0 - frac) ** 2.5)
+                val = max(val, peak * (1.0 - frac) ** 2.0)
         pts.append((t, val))
 
     pts[-1] = (1.0, pts[0][1])          # seamless loop
@@ -233,15 +239,25 @@ def generate_svg(cal):
         f'style="{sub}">{total:,} commits</text>'
     )
 
-    # ── board frame (bar zone only) ───────────────────────────
+    # ── bar zone background (same base color as sky, subtle animated tint) ─
+    # Thin border — very faint
     s.append(
         f'<rect x="{gx - 1}" y="{bar_top - 1}" width="{grid_w + 2}" '
         f'height="{BAR_MAX_H + 2}" rx="2" fill="none" '
-        f'stroke="{BORDER}" stroke-opacity="0.25"/>'
+        f'stroke="{BORDER}" stroke-opacity="0.15"/>'
     )
+    # Static base – same color as main BG so sky & bar zone are seamless
     s.append(
         f'<rect x="{gx}" y="{bar_top}" width="{grid_w}" '
-        f'height="{BAR_MAX_H}" fill="{BOARD}" rx="1"/>'
+        f'height="{BAR_MAX_H}" fill="{BG}" rx="1"/>'
+    )
+    # Subtle animated overlay: faint green tint that breathes
+    s.append(
+        f'<rect x="{gx}" y="{bar_top}" width="{grid_w}" '
+        f'height="{BAR_MAX_H}" fill="{RAIN_DIM}" opacity="0.025" rx="1">'
+        f'<animate attributeName="opacity" values="0.025;0.055;0.025" '
+        f'dur="8s" repeatCount="indefinite"/>'
+        f'</rect>'
     )
 
     # ── ghost silhouette (always visible) ─────────────────────
@@ -302,22 +318,36 @@ def generate_svg(cal):
         elif si % 2 == 0:
             n_streams = 2
 
-        # Column-level opacity animated as INVERSE of fill wave
-        # → heavy rain when bar is empty, faint rain when full
+        # Column-level opacity animated from the DERIVATIVE of the wave:
+        #   filling (dv > 0) → rain is heavy (high opacity)
+        #   draining (dv ≤ 0) → rain fades out (low opacity)
+        # This creates a direct causal feel: rain pours → bar rises.
         if wave is not None:
-            pk = max(v for _, v in wave) or 0.01
-            o_kt = ";".join(f"{t:.5f}" for t, _ in wave)
-            o_vs = ";".join(
-                f"{0.06 + 0.78 * max(0, 1.0 - v / pk):.3f}"
-                for _, v in wave
-            )
+            o_kt_parts = []
+            o_vs_parts = []
+            for wi_idx in range(len(wave)):
+                t_now, v_now = wave[wi_idx]
+                t_nxt, v_nxt = wave[(wi_idx + 1) % len(wave)]
+                dv = v_nxt - v_now
+                if dv > 0:
+                    # Filling phase: opacity proportional to fill speed
+                    op = min(0.85, 0.25 + dv * 12.0)
+                elif dv < 0:
+                    # Draining phase: dim rain
+                    op = max(0.04, 0.12 + dv * 2.0)
+                else:
+                    op = 0.08
+                o_kt_parts.append(f"{t_now:.5f}")
+                o_vs_parts.append(f"{op:.3f}")
+            o_kt = ";".join(o_kt_parts)
+            o_vs = ";".join(o_vs_parts)
             s.append(f'<g>')
             s.append(
                 f'<animate attributeName="opacity" dur="{CYCLE}s" '
                 f'repeatCount="indefinite" keyTimes="{o_kt}" values="{o_vs}"/>'
             )
         else:
-            s.append(f'<g opacity="0.06">')
+            s.append(f'<g opacity="0.04">')
 
         for sn in range(n_streams):
             slen = random.randint(6, 18)
