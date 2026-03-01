@@ -201,17 +201,7 @@ nav.scrolled {
   overflow: hidden;
   margin-top: 56px;
 }
-#hero::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: linear-gradient(transparent, var(--bg));
-  pointer-events: none;
-  z-index: 1;
-}
+/* hero gradient removed — rain flows freely */
 .hero-overlay {
   position: relative;
   z-index: 2;
@@ -351,7 +341,9 @@ section {
 }
 
 .stat-card {
-  background: var(--bg-card);
+  background: rgba(17, 17, 24, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px;
@@ -423,7 +415,9 @@ section {
 
 /* ── Dashboard Card ───────────────────────────────────────────── */
 .dash-card {
-  background: var(--bg-card);
+  background: rgba(17, 17, 24, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 24px;
@@ -786,7 +780,9 @@ section {
 }
 
 .repo-card {
-  background: var(--bg-card);
+  background: rgba(17, 17, 24, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 22px;
@@ -861,7 +857,9 @@ section {
 }
 
 .insight-card {
-  background: var(--bg-card);
+  background: rgba(17, 17, 24, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px 14px;
@@ -934,8 +932,7 @@ footer {
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 32px 20px;
-  border-top: 1px solid var(--border);
+  padding: 48px 20px 32px;
   font-size: 0.8rem;
   color: var(--text-dim);
 }
@@ -945,6 +942,149 @@ footer strong {
 .foot-sub {
   margin-top: 4px;
   font-size: 0.7rem;
+}
+
+/* ── Cascade Section Dividers ──────────────────────────────────── */
+#distribution,
+#analytics,
+#patterns,
+#repos,
+#insights,
+footer {
+  padding-top: 48px;
+}
+
+/* Glowing horizontal line */
+#distribution::before,
+#analytics::before,
+#patterns::before,
+#repos::before,
+#insights::before,
+footer::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  z-index: 6;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 211, 238, 0.12) 15%,
+    rgba(34, 211, 238, 0.4) 50%,
+    rgba(34, 211, 238, 0.12) 85%,
+    transparent
+  );
+  box-shadow:
+    0 0 8px rgba(34, 211, 238, 0.15),
+    0 0 24px rgba(34, 211, 238, 0.05);
+}
+
+/* Scanning beam sweeping across */
+#distribution::after,
+#analytics::after,
+#patterns::after,
+#repos::after,
+#insights::after,
+footer::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 80px;
+  height: 5px;
+  z-index: 7;
+  border-radius: 3px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(34, 211, 238, 0.8),
+    rgba(34, 211, 238, 0.2) 60%,
+    transparent
+  );
+  box-shadow:
+    0 0 16px rgba(34, 211, 238, 0.5),
+    0 0 40px rgba(34, 211, 238, 0.15);
+  pointer-events: none;
+  animation: scan-beam 6s ease-in-out infinite;
+}
+
+/* Stagger scan beams for cascading wave down page */
+#analytics::after {
+  animation-delay: 1s;
+}
+#patterns::after {
+  animation-delay: 2s;
+}
+#repos::after {
+  animation-delay: 3s;
+}
+#insights::after {
+  animation-delay: 4s;
+}
+footer::after {
+  animation-delay: 5s;
+}
+
+@keyframes scan-beam {
+  0% {
+    left: -80px;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  46% {
+    opacity: 1;
+  }
+  50% {
+    left: calc(100% + 80px);
+    opacity: 0;
+  }
+  100% {
+    left: -80px;
+    opacity: 0;
+  }
+}
+
+/* Cascade particle container */
+.cascade-wrap {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  height: 80px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Individual falling matrix characters */
+.cascade-char {
+  position: absolute;
+  top: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+  animation: char-cascade linear forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes char-cascade {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.7;
+    text-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
+  }
+  40% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(72px) scale(0.7);
+    opacity: 0;
+    text-shadow: 0 0 2px rgba(34, 211, 238, 0.1);
+  }
 }
 
 /* ── Animations ───────────────────────────────────────────────── */

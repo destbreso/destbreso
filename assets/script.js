@@ -20,6 +20,7 @@
     initTerminal();
     initNav();
     initScrollAnimations();
+    initCascadeDividers();
     fetchGitHubData();
   });
 
@@ -75,11 +76,11 @@
           ctx.fillStyle = "rgba(34,211,238,0.7)";
         } else {
           ctx.shadowBlur = 0;
-          // Subtle muted green at low opacity
+          // Subtle muted green — visible but not distracting
           ctx.fillStyle =
             Math.random() > 0.985
-              ? "rgba(255,255,255,0.15)"
-              : "rgba(0,255,65,0.08)";
+              ? "rgba(255,255,255,0.22)"
+              : "rgba(0,255,65,0.12)";
         }
 
         ctx.fillText(ch, x, y);
@@ -167,6 +168,45 @@
       { threshold: 0.1 },
     );
     els.forEach((el) => obs.observe(el));
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 3b. CASCADE SECTION DIVIDERS
+  // ════════════════════════════════════════════════════════════
+  function initCascadeDividers() {
+    const targets = document.querySelectorAll(
+      '#distribution, #analytics, #patterns, #repos, #insights, footer'
+    );
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF{}[]';
+    const colors = [
+      'rgba(34,211,238,0.55)',
+      'rgba(34,211,238,0.35)',
+      'rgba(0,255,65,0.3)',
+      'rgba(34,211,238,0.45)',
+      'rgba(167,139,250,0.3)',
+    ];
+
+    targets.forEach((section) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'cascade-wrap';
+      section.prepend(wrap);
+
+      function spawnDrop() {
+        if (document.hidden) return;
+        const span = document.createElement('span');
+        span.className = 'cascade-char';
+        span.textContent = chars[Math.floor(Math.random() * chars.length)];
+        span.style.left = (3 + Math.random() * 94) + '%';
+        span.style.color = colors[Math.floor(Math.random() * colors.length)];
+        const dur = 1.0 + Math.random() * 1.8;
+        span.style.animationDuration = dur + 's';
+        wrap.appendChild(span);
+        setTimeout(() => span.remove(), dur * 1000 + 50);
+      }
+
+      // Spawn at staggered intervals — ~5 drops/sec per section
+      setInterval(spawnDrop, 180 + Math.random() * 80);
+    });
   }
 
   // ════════════════════════════════════════════════════════════
