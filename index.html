@@ -233,6 +233,74 @@
       </div>
     </section>
 
+    <!-- ═══ PROJECT ANALYTICS ══════════════════════════════════════ -->
+    <section id="projects" data-animate="fade-up">
+      <div class="container">
+        <div class="section-header">
+          <h2><i data-lucide="layers"></i> Project Analytics</h2>
+          <span class="card-hint">Based on recent activity</span>
+        </div>
+        <div class="grid-2">
+          <!-- Effort Distribution (Horizontal Bars) -->
+          <div class="dash-card">
+            <div class="card-header">
+              <h2><i data-lucide="bar-chart-3"></i> Effort Distribution</h2>
+              <span class="card-hint">Events / Repo</span>
+            </div>
+            <div class="chart-box" style="height: 320px">
+              <canvas id="proj-effort-chart"></canvas>
+              <div class="chart-loading" id="proj-effort-loading">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Project × Day Heatmap -->
+          <div class="dash-card">
+            <div class="card-header">
+              <h2><i data-lucide="calendar"></i> Project Schedule</h2>
+              <span class="card-hint">Repo × Day</span>
+            </div>
+            <div class="proj-hm-wrap">
+              <div class="proj-hm-labels" id="proj-day-labels"></div>
+              <div class="proj-hm-grid proj-day-cols" id="proj-day-grid"></div>
+              <div class="proj-hm-x" id="proj-day-x"></div>
+              <div class="chart-loading" id="proj-day-loading">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top: 20px">
+          <!-- Project × Hour Heatmap -->
+          <div class="dash-card">
+            <div class="card-header">
+              <h2><i data-lucide="clock"></i> Project Hours</h2>
+              <span class="card-hint">Repo × Time Slot</span>
+            </div>
+            <div class="proj-hm-wrap">
+              <div class="proj-hm-labels" id="proj-hour-labels"></div>
+              <div class="proj-hm-grid proj-hour-cols" id="proj-hour-grid"></div>
+              <div class="proj-hm-x" id="proj-hour-x"></div>
+              <div class="chart-loading" id="proj-hour-loading">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Project Insights -->
+          <div class="dash-card">
+            <div class="card-header">
+              <h2><i data-lucide="target"></i> Project Insights</h2>
+            </div>
+            <div class="proj-insights" id="proj-insights">
+              <div class="chart-loading" id="proj-ins-loading">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ═══ INSIGHTS ══════════════════════════════════════════════ -->
     <section id="insights" data-animate="fade-up">
       <div class="container">

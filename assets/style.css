@@ -1040,133 +1040,157 @@ footer strong {
   font-size: 0.7rem;
 }
 
-/* ── Cascade Section Dividers ──────────────────────────────────── */
+/* ── Project Analytics Heatmaps ───────────────────────────────── */
+.proj-hm-wrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 3px;
+  min-height: 140px;
+}
+.proj-hm-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: flex-start;
+  padding-right: 4px;
+}
+.proj-hm-labels span {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.proj-hm-grid {
+  display: grid;
+  gap: 2px;
+}
+.proj-day-cols {
+  grid-template-columns: repeat(7, 1fr);
+}
+.proj-hour-cols {
+  grid-template-columns: repeat(6, 1fr);
+}
+.proj-hm-grid .hm-cell {
+  aspect-ratio: auto;
+  min-height: 18px;
+  border-radius: 3px;
+}
+.proj-hm-x {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0 0;
+}
+.proj-hm-x span {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  text-align: center;
+  flex: 1;
+}
+
+/* ── Project Insights Cards ───────────────────────────────────── */
+.proj-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  min-height: 140px;
+}
+.proj-insight-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.25s var(--ease);
+}
+.proj-insight-row:hover {
+  border-color: rgba(34, 211, 238, 0.2);
+  background: rgba(34, 211, 238, 0.03);
+}
+.proj-insight-icon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--accent-dim);
+  flex-shrink: 0;
+}
+.proj-insight-icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+.proj-insight-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.proj-insight-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.proj-insight-desc {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.proj-insight-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
+  flex-shrink: 0;
+}
+
+/* ── Cascade Section Dividers (subtle — no visible line) ─────── */
 #contributions,
 #distribution,
 #analytics,
 #patterns,
 #repos,
+#projects,
 #insights,
 footer {
-  padding-top: 48px;
+  padding-top: 32px;
 }
 
-/* Glowing horizontal line */
-#contributions::before,
-#distribution::before,
-#analytics::before,
-#patterns::before,
-#repos::before,
-#insights::before,
-footer::before {
-  content: "";
-  position: absolute;
-  top: 8px;
-  left: 8%;
-  right: 8%;
-  height: 1px;
-  z-index: 6;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(34, 211, 238, 0.12) 15%,
-    rgba(34, 211, 238, 0.4) 50%,
-    rgba(34, 211, 238, 0.12) 85%,
-    transparent
-  );
-  box-shadow:
-    0 0 8px rgba(34, 211, 238, 0.15),
-    0 0 24px rgba(34, 211, 238, 0.05);
-}
-
-/* Scanning beam sweeping across */
-#contributions::after,
-#distribution::after,
-#analytics::after,
-#patterns::after,
-#repos::after,
-#insights::after,
-footer::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  left: 0;
-  width: 80px;
-  height: 5px;
-  z-index: 7;
-  border-radius: 3px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(34, 211, 238, 0.8),
-    rgba(34, 211, 238, 0.2) 60%,
-    transparent
-  );
-  box-shadow:
-    0 0 16px rgba(34, 211, 238, 0.5),
-    0 0 40px rgba(34, 211, 238, 0.15);
-  pointer-events: none;
-  animation: scan-beam 6s ease-in-out infinite;
-}
-
-/* Stagger scan beams for cascading wave down page */
-#distribution::after {
-  animation-delay: 0.9s;
-}
-#analytics::after {
-  animation-delay: 1.8s;
-}
-#patterns::after {
-  animation-delay: 2.7s;
-}
-#repos::after {
-  animation-delay: 3.6s;
-}
-#insights::after {
-  animation-delay: 4.5s;
-}
-footer::after {
-  animation-delay: 5.4s;
-}
-
-@keyframes scan-beam {
-  0% {
-    left: -80px;
-    opacity: 0;
-  }
-  4% {
-    opacity: 1;
-  }
-  46% {
-    opacity: 1;
-  }
-  50% {
-    left: calc(100% + 80px);
-    opacity: 0;
-  }
-  100% {
-    left: -80px;
-    opacity: 0;
-  }
-}
-
-/* Cascade particle container */
+/* Cascade particle container — invisible collision zone */
 .cascade-wrap {
   position: absolute;
-  top: 2px;
+  top: -6px;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 60px;
   overflow: hidden;
   pointer-events: none;
   z-index: 5;
 }
 
-/* Individual falling matrix characters */
+/* Individual falling matrix characters — subtle splash */
 .cascade-char {
   position: absolute;
-  top: 0;
+  top: 18px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1;
   pointer-events: none;
   animation: char-cascade linear forwards;
@@ -1175,17 +1199,17 @@ footer::after {
 
 @keyframes char-cascade {
   0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.7;
-    text-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
+    transform: translateY(0) scale(0.9) rotate(0deg);
+    opacity: 0.55;
+    text-shadow: 0 0 5px rgba(34, 211, 238, 0.5);
   }
-  40% {
-    opacity: 0.4;
+  30% {
+    opacity: 0.35;
   }
   100% {
-    transform: translateY(72px) scale(0.7);
+    transform: translateY(36px) scale(0.5) rotate(12deg);
     opacity: 0;
-    text-shadow: 0 0 2px rgba(34, 211, 238, 0.1);
+    text-shadow: 0 0 1px rgba(34, 211, 238, 0.05);
   }
 }
 

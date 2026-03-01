@@ -177,16 +177,16 @@
   // ════════════════════════════════════════════════════════════
   function initCascadeDividers() {
     const targets = document.querySelectorAll(
-      "#contributions, #distribution, #analytics, #patterns, #repos, #insights, footer",
+      "#contributions, #distribution, #analytics, #patterns, #repos, #projects, #insights, footer",
     );
     const chars =
       "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF{}[]";
     const colors = [
-      "rgba(34,211,238,0.55)",
       "rgba(34,211,238,0.35)",
-      "rgba(0,255,65,0.3)",
-      "rgba(34,211,238,0.45)",
-      "rgba(167,139,250,0.3)",
+      "rgba(34,211,238,0.22)",
+      "rgba(0,255,65,0.18)",
+      "rgba(34,211,238,0.28)",
+      "rgba(167,139,250,0.18)",
     ];
 
     targets.forEach((section) => {
@@ -199,16 +199,16 @@
         const span = document.createElement("span");
         span.className = "cascade-char";
         span.textContent = chars[Math.floor(Math.random() * chars.length)];
-        span.style.left = 3 + Math.random() * 94 + "%";
+        span.style.left = 5 + Math.random() * 90 + "%";
         span.style.color = colors[Math.floor(Math.random() * colors.length)];
-        const dur = 1.0 + Math.random() * 1.8;
+        const dur = 0.8 + Math.random() * 1.2;
         span.style.animationDuration = dur + "s";
         wrap.appendChild(span);
         setTimeout(() => span.remove(), dur * 1000 + 50);
       }
 
-      // Spawn at staggered intervals — ~5 drops/sec per section
-      setInterval(spawnDrop, 180 + Math.random() * 80);
+      // Fewer drops (~3/sec) for subtlety
+      setInterval(spawnDrop, 280 + Math.random() * 120);
     });
   }
 
@@ -260,6 +260,7 @@
       renderRadar();
       renderTimeline();
       renderRepos();
+      renderProjectAnalytics();
       renderInsights();
 
       if (window.lucide) lucide.createIcons();
@@ -1183,6 +1184,384 @@
         );
       })
       .join("");
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 11b. PROJECT ANALYTICS
+  // ════════════════════════════════════════════════════════════
+
+  function getRepoEventsMap() {
+    // Map repo name → array of event dates
+    const map = {};
+    ghEvents.forEach((ev) => {
+      const repo = ev.repo ? ev.repo.name.split("/")[1] : null;
+      if (!repo) return;
+      if (!map[repo]) map[repo] = [];
+      map[repo].push(new Date(ev.created_at));
+    });
+    return map;
+  }
+
+  function topReposByEvents(repoMap, limit) {
+    return Object.entries(repoMap)
+      .map(([name, dates]) => ({ name, dates, count: dates.length }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  function renderProjectEffort() {
+    const canvas = document.getElementById("proj-effort-chart");
+    const loading = document.getElementById("proj-effort-loading");
+    if (!canvas) return;
+    if (loading) loading.classList.add("hidden");
+
+    const repoMap = getRepoEventsMap();
+    const topRepos = topReposByEvents(repoMap, 10);
+    if (!topRepos.length) return;
+
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width,
+      H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const max = Math.max(...topRepos.map((r) => r.count), 1);
+    const pad = { top: 12, right: 20, bottom: 8, left: 110 };
+    const cW = W - pad.left - pad.right;
+    const cH = H - pad.top - pad.bottom;
+    const barH = Math.min(22, (cH / topRepos.length) * 0.65);
+    const gap = cH / topRepos.length;
+
+    topRepos.forEach((repo, idx) => {
+      const y = pad.top + idx * gap + (gap - barH) / 2;
+      const bW = (repo.count / max) * cW;
+
+      // Label
+      ctx.fillStyle = "rgba(" + AC + ",.5)";
+      ctx.font = '10px "JetBrains Mono",monospace';
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      const label =
+        repo.name.length > 14 ? repo.name.slice(0, 13) + "…" : repo.name;
+      ctx.fillText(label, pad.left - 8, y + barH / 2);
+
+      // Bar glow
+      if (bW > 2) {
+        ctx.save();
+        ctx.shadowColor = "rgba(" + AC + ",.25)";
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = "rgba(" + AC + ",.08)";
+        ctx.fillRect(pad.left, y + 1, bW, barH - 2);
+        ctx.restore();
+
+        const grad = ctx.createLinearGradient(pad.left, 0, pad.left + bW, 0);
+        grad.addColorStop(0, "rgba(" + AC + ",.7)");
+        grad.addColorStop(1, "rgba(" + AC + ",.2)");
+        ctx.fillStyle = grad;
+        const r = Math.min(barH / 2, 4);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y + r);
+        ctx.lineTo(pad.left, y + barH - r);
+        ctx.quadraticCurveTo(pad.left, y + barH, pad.left + r, y + barH);
+        ctx.lineTo(pad.left + bW - r, y + barH);
+        ctx.quadraticCurveTo(
+          pad.left + bW,
+          y + barH,
+          pad.left + bW,
+          y + barH - r,
+        );
+        ctx.lineTo(pad.left + bW, y + r);
+        ctx.quadraticCurveTo(pad.left + bW, y, pad.left + bW - r, y);
+        ctx.lineTo(pad.left + r, y);
+        ctx.quadraticCurveTo(pad.left, y, pad.left, y + r);
+        ctx.fill();
+      }
+
+      // Count
+      ctx.fillStyle = "rgba(" + AC + ",.4)";
+      ctx.font = '9px "JetBrains Mono",monospace';
+      ctx.textAlign = "left";
+      ctx.fillText(repo.count, pad.left + bW + 6, y + barH / 2);
+    });
+  }
+
+  function renderProjectDayHeatmap() {
+    const grid = document.getElementById("proj-day-grid");
+    const labels = document.getElementById("proj-day-labels");
+    const xAxis = document.getElementById("proj-day-x");
+    const loading = document.getElementById("proj-day-loading");
+    if (!grid) return;
+    if (loading) loading.classList.add("hidden");
+
+    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const repoMap = getRepoEventsMap();
+    const topRepos = topReposByEvents(repoMap, 8);
+    if (!topRepos.length) return;
+
+    // Build matrix: repo × day
+    const matrix = topRepos.map((repo) => {
+      const row = Array(7).fill(0);
+      repo.dates.forEach((d) => {
+        const day = d.getDay();
+        // Convert Sun=0..Sat=6 → Mon=0..Sun=6
+        row[day === 0 ? 6 : day - 1]++;
+      });
+      return row;
+    });
+
+    const max = Math.max(...matrix.flat(), 1);
+
+    // Labels
+    if (labels) {
+      labels.innerHTML = topRepos
+        .map((r) => {
+          const n = r.name.length > 12 ? r.name.slice(0, 11) + "…" : r.name;
+          return '<span title="' + r.name + '">' + n + "</span>";
+        })
+        .join("");
+    }
+
+    // Grid
+    grid.style.gridTemplateRows = "repeat(" + topRepos.length + ", 18px)";
+    grid.innerHTML = "";
+    for (let ri = 0; ri < topRepos.length; ri++) {
+      for (let di = 0; di < 7; di++) {
+        const cell = document.createElement("div");
+        cell.className = "hm-cell";
+        const val = matrix[ri][di];
+        if (val > 0) {
+          const alpha = 0.12 + (val / max) * 0.88;
+          cell.style.background = "rgba(" + AC + "," + alpha.toFixed(2) + ")";
+          if (val / max > 0.7) cell.classList.add("glow-hi");
+          else if (val / max > 0.4) cell.classList.add("glow-md");
+        }
+        cell.setAttribute(
+          "data-tip",
+          topRepos[ri].name + " · " + DAYS[di] + ": " + val + " events",
+        );
+        grid.appendChild(cell);
+      }
+    }
+
+    // X axis
+    if (xAxis) {
+      xAxis.innerHTML = DAYS.map((d) => "<span>" + d + "</span>").join("");
+    }
+  }
+
+  function renderProjectHourHeatmap() {
+    const grid = document.getElementById("proj-hour-grid");
+    const labels = document.getElementById("proj-hour-labels");
+    const xAxis = document.getElementById("proj-hour-x");
+    const loading = document.getElementById("proj-hour-loading");
+    if (!grid) return;
+    if (loading) loading.classList.add("hidden");
+
+    const SLOTS = ["00–04", "04–08", "08–12", "12–16", "16–20", "20–24"];
+    const repoMap = getRepoEventsMap();
+    const topRepos = topReposByEvents(repoMap, 8);
+    if (!topRepos.length) return;
+
+    // Build matrix: repo × time-slot (4h buckets)
+    const matrix = topRepos.map((repo) => {
+      const row = Array(6).fill(0);
+      repo.dates.forEach((d) => {
+        row[Math.floor(d.getHours() / 4)]++;
+      });
+      return row;
+    });
+
+    const max = Math.max(...matrix.flat(), 1);
+
+    // Labels
+    if (labels) {
+      labels.innerHTML = topRepos
+        .map((r) => {
+          const n = r.name.length > 12 ? r.name.slice(0, 11) + "…" : r.name;
+          return '<span title="' + r.name + '">' + n + "</span>";
+        })
+        .join("");
+    }
+
+    // Grid
+    grid.style.gridTemplateRows = "repeat(" + topRepos.length + ", 18px)";
+    grid.innerHTML = "";
+    for (let ri = 0; ri < topRepos.length; ri++) {
+      for (let si = 0; si < 6; si++) {
+        const cell = document.createElement("div");
+        cell.className = "hm-cell";
+        const val = matrix[ri][si];
+        if (val > 0) {
+          const alpha = 0.12 + (val / max) * 0.88;
+          cell.style.background = "rgba(" + AC + "," + alpha.toFixed(2) + ")";
+          if (val / max > 0.7) cell.classList.add("glow-hi");
+          else if (val / max > 0.4) cell.classList.add("glow-md");
+        }
+        cell.setAttribute(
+          "data-tip",
+          topRepos[ri].name + " · " + SLOTS[si] + "h: " + val + " events",
+        );
+        grid.appendChild(cell);
+      }
+    }
+
+    // X axis
+    if (xAxis) {
+      xAxis.innerHTML = SLOTS.map((s) => "<span>" + s + "</span>").join("");
+    }
+  }
+
+  function renderProjectInsights() {
+    const container = document.getElementById("proj-insights");
+    const loading = document.getElementById("proj-ins-loading");
+    if (!container) return;
+    if (loading) loading.classList.add("hidden");
+
+    const repoMap = getRepoEventsMap();
+    const topRepos = topReposByEvents(repoMap, 20);
+    if (!topRepos.length) {
+      container.innerHTML =
+        '<span style="color:var(--text-dim);font-size:.8rem">No project data</span>';
+      return;
+    }
+
+    const DAYS = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const insights = [];
+
+    // 1. Most focused project (highest event count)
+    const top = topRepos[0];
+    insights.push({
+      icon: "target",
+      title: "Most Focused",
+      desc:
+        top.name +
+        " has " +
+        top.count +
+        " events — your primary project right now",
+      badge: top.count + " events",
+    });
+
+    // 2. Project diversity (how many repos active)
+    const activeCount = topRepos.filter((r) => r.count >= 2).length;
+    const totalEvents = topRepos.reduce((s, r) => s + r.count, 0);
+    insights.push({
+      icon: "layers",
+      title: "Project Spread",
+      desc:
+        activeCount +
+        " active repos out of " +
+        topRepos.length +
+        " in recent history",
+      badge: activeCount + " repos",
+    });
+
+    // 3. Focus ratio (top project % of total)
+    const focusPct = Math.round((top.count / totalEvents) * 100);
+    insights.push({
+      icon: "pie-chart",
+      title: "Focus Ratio",
+      desc:
+        focusPct +
+        "% of effort on " +
+        top.name +
+        (focusPct > 60
+          ? " — deep work mode"
+          : focusPct > 35
+            ? " — balanced focus"
+            : " — multitasking"),
+      badge: focusPct + "%",
+    });
+
+    // 4. Preferred day per top project
+    if (topRepos.length >= 2) {
+      const repo = topRepos[0];
+      const dayTotals = Array(7).fill(0);
+      repo.dates.forEach((d) => dayTotals[d.getDay()]++);
+      const peakDay = dayTotals.indexOf(Math.max(...dayTotals));
+      insights.push({
+        icon: "calendar",
+        title: top.name + " Day",
+        desc: DAYS[peakDay] + " is your preferred day for " + top.name,
+        badge: DAYS[peakDay].slice(0, 3),
+      });
+    }
+
+    // 5. Night vs Day per top project
+    if (top.dates.length) {
+      const nightCount = top.dates.filter((d) => {
+        const h = d.getHours();
+        return h >= 22 || h < 6;
+      }).length;
+      const nightPct = Math.round((nightCount / top.dates.length) * 100);
+      insights.push({
+        icon: nightPct > 40 ? "moon" : "sun",
+        title: "Work Pattern",
+        desc:
+          top.name +
+          ": " +
+          nightPct +
+          "% night sessions" +
+          (nightPct > 40 ? " — night owl" : " — daytime coder"),
+        badge: nightPct + "% night",
+      });
+    }
+
+    // 6. Weekend warrior
+    const weekendEvents = topRepos.reduce((s, r) => {
+      return (
+        s + r.dates.filter((d) => d.getDay() === 0 || d.getDay() === 6).length
+      );
+    }, 0);
+    const weekendPct = Math.round((weekendEvents / totalEvents) * 100);
+    insights.push({
+      icon: "coffee",
+      title: "Weekend Warrior",
+      desc: weekendPct + "% of your activity happens on weekends",
+      badge: weekendPct + "%",
+    });
+
+    container.innerHTML = insights
+      .map(
+        (ins) =>
+          '<div class="proj-insight-row">' +
+          '<div class="proj-insight-icon"><i data-lucide="' +
+          ins.icon +
+          '"></i></div>' +
+          '<div class="proj-insight-text">' +
+          '<span class="proj-insight-title">' +
+          ins.title +
+          "</span>" +
+          '<span class="proj-insight-desc">' +
+          ins.desc +
+          "</span>" +
+          "</div>" +
+          '<span class="proj-insight-badge">' +
+          ins.badge +
+          "</span>" +
+          "</div>",
+      )
+      .join("");
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderProjectAnalytics() {
+    renderProjectEffort();
+    renderProjectDayHeatmap();
+    renderProjectHourHeatmap();
+    renderProjectInsights();
   }
 
   // ════════════════════════════════════════════════════════════
