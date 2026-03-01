@@ -39,19 +39,27 @@
     let mx = -9999,
       my = -9999;
 
+    // Full-page: size to viewport
     function resize() {
-      w = c.width = c.offsetWidth;
-      h = c.height = c.offsetHeight;
+      w = c.width = window.innerWidth;
+      h = c.height = window.innerHeight;
       cols = Math.floor(w / fs) + 1;
       drops = Array.from({ length: cols }, () => Math.random() * (h / fs) * -1);
     }
 
     function frame() {
-      ctx.fillStyle = "rgba(10,10,15,0.06)";
+      // Faster fade → more subtle trails
+      ctx.fillStyle = "rgba(10,10,15,0.12)";
       ctx.fillRect(0, 0, w, h);
       ctx.font = fs + "px monospace";
 
       for (let i = 0; i < cols; i++) {
+        // Only render ~40% of columns each frame for sparsity
+        if (Math.random() > 0.4) {
+          drops[i] += 0.25 + Math.random() * 0.25;
+          continue;
+        }
+
         const x = i * fs;
         const y = drops[i] * fs;
         const ch = chars[Math.floor(Math.random() * chars.length)];
@@ -60,20 +68,25 @@
           dy = y - my;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 120) {
+        if (dist < 150) {
+          // Mouse proximity: brighter cyan glow
           ctx.shadowColor = "#22d3ee";
-          ctx.shadowBlur = 15;
-          ctx.fillStyle = "#22d3ee";
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = "rgba(34,211,238,0.7)";
         } else {
           ctx.shadowBlur = 0;
-          ctx.fillStyle = Math.random() > 0.97 ? "#fff" : "#00ff41";
+          // Subtle muted green at low opacity
+          ctx.fillStyle =
+            Math.random() > 0.985
+              ? "rgba(255,255,255,0.15)"
+              : "rgba(0,255,65,0.08)";
         }
 
         ctx.fillText(ch, x, y);
         ctx.shadowBlur = 0;
 
-        if (y > h && Math.random() > 0.975) drops[i] = 0;
-        drops[i] += 0.4 + Math.random() * 0.4;
+        if (y > h && Math.random() > 0.98) drops[i] = 0;
+        drops[i] += 0.25 + Math.random() * 0.25;
       }
       requestAnimationFrame(frame);
     }
@@ -88,13 +101,11 @@
       ctx.fillStyle = "#0a0a0f";
       ctx.fillRect(0, 0, w, h);
     });
-    c.addEventListener("mousemove", (e) => {
-      const r = c.getBoundingClientRect();
-      mx = e.clientX - r.left;
-      my = e.clientY - r.top;
-    });
-    c.addEventListener("mouseleave", () => {
-      mx = my = -9999;
+
+    // Mouse interaction on full page (canvas has pointer-events:none)
+    document.addEventListener("mousemove", (e) => {
+      mx = e.clientX;
+      my = e.clientY;
     });
   }
 

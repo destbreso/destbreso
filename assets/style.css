@@ -36,14 +36,10 @@ a:hover{color:#67e8f9}
 
 .container{max-width:var(--container);margin:0 auto;padding:0 20px}
 
-/* ── Background grid ──────────────────────────────────────────── */
-body::before{
-  content:'';position:fixed;inset:0;
-  background-image:
-    linear-gradient(rgba(34,211,238,.015) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(34,211,238,.015) 1px,transparent 1px);
-  background-size:40px 40px;
-  pointer-events:none;z-index:0;
+/* ── Full-page Matrix Rain canvas ─────────────────────────────── */
+#matrix-canvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;
 }
 
 /* ── Navigation ───────────────────────────────────────────────── */
@@ -100,11 +96,10 @@ nav.scrolled{border-bottom-color:var(--border);background:rgba(10,10,15,.92)}
   50%{box-shadow:0 0 0 6px rgba(0,255,65,0)}
 }
 
-/* ── Hero / Matrix Rain ───────────────────────────────────────── */
+/* ── Hero ─────────────────────────────────────────────────────── */
 #hero{
   position:relative;height:360px;overflow:hidden;margin-top:56px;
 }
-#matrix-canvas{position:absolute;inset:0;width:100%;height:100%}
 #hero::after{
   content:'';position:absolute;bottom:0;left:0;right:0;height:80px;
   background:linear-gradient(transparent,var(--bg));pointer-events:none;z-index:1;
