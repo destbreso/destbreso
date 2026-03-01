@@ -279,7 +279,10 @@
             </div>
             <div class="proj-hm-wrap">
               <div class="proj-hm-labels" id="proj-hour-labels"></div>
-              <div class="proj-hm-grid proj-hour-cols" id="proj-hour-grid"></div>
+              <div
+                class="proj-hm-grid proj-hour-cols"
+                id="proj-hour-grid"
+              ></div>
               <div class="proj-hm-x" id="proj-hour-x"></div>
               <div class="chart-loading" id="proj-hour-loading">
                 <div class="spinner"></div>
@@ -309,6 +312,24 @@
         </div>
         <div class="insights-grid" id="insights-grid">
           <!-- rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ DAILY ACTIVE HOURS TREND ══════════════════════════════ -->
+    <section id="daily-hours" data-animate="fade-up">
+      <div class="container">
+        <div class="dash-card">
+          <div class="card-header">
+            <h2><i data-lucide="timer"></i> Daily Active Hours</h2>
+            <span class="card-hint" id="avg-hours-badge"></span>
+          </div>
+          <div class="chart-box" style="height: 200px">
+            <canvas id="daily-hours-chart"></canvas>
+            <div class="chart-loading" id="daily-hours-loading">
+              <div class="spinner"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

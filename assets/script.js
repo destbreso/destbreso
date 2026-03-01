@@ -17,6 +17,7 @@
   let contributions = []; // {date,count,level}[] from contributions API
   let contribTotal = 0;
   let repoLangsMap = {}; // repo → {lang: bytes}
+  let repoWeeklyStats = {}; // repo → [{week, total}] from stats/commit_activity (52 weeks)
 
   document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) lucide.createIcons();
@@ -179,7 +180,7 @@
   // ════════════════════════════════════════════════════════════
   function initCascadeDividers() {
     const targets = document.querySelectorAll(
-      "#contributions, #distribution, #analytics, #patterns, #repos, #projects, #insights, footer",
+      "#contributions, #distribution, #analytics, #patterns, #repos, #projects, #insights, #daily-hours, footer",
     );
     const chars =
       "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF{}[]";
@@ -252,10 +253,25 @@
 
       ghEvents = await fetchAllEvents();
       commits = extractCommits(ghEvents.filter((e) => e.type === "PushEvent"));
-      allEventDates = ghEvents.map((e) => new Date(e.created_at));
+      // Build allEventDates: expand PushEvents by commit count for accurate volume
+      allEventDates = [];
+      ghEvents.forEach((ev) => {
+        const d = new Date(ev.created_at);
+        if (ev.type === "PushEvent") {
+          const n =
+            ev.payload?.size ||
+            (ev.payload?.commits ? ev.payload.commits.length : 1);
+          for (let i = 0; i < n; i++) allEventDates.push(d);
+        } else {
+          allEventDates.push(d);
+        }
+      });
 
       // Fetch per-repo language breakdowns for top repos (real bytes)
       repoLangsMap = await fetchRepoLanguages(ghRepos.slice(0, 20));
+
+      // Fetch yearly commit stats per repo (52 weeks of data)
+      repoWeeklyStats = await fetchRepoCommitStats(ghRepos.slice(0, 15));
 
       renderContribGraph();
       renderStats();
@@ -268,6 +284,7 @@
       renderRepos();
       renderProjectAnalytics();
       renderInsights();
+      renderDailyHours();
 
       if (window.lucide) lucide.createIcons();
     } catch (err) {
@@ -310,6 +327,29 @@
         })
         .catch(() => {
           map[r.name] = {};
+        }),
+    );
+    await Promise.all(promises);
+    return map;
+  }
+
+  async function fetchRepoCommitStats(repos) {
+    // Returns {repoName: [{week: unixTs, total: N, days: [Sun..Sat]}]}
+    const map = {};
+    const promises = repos.map((r) =>
+      fetch(
+        "https://api.github.com/repos/" +
+          GH_USER +
+          "/" +
+          r.name +
+          "/stats/commit_activity",
+      )
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          map[r.name] = Array.isArray(data) ? data : [];
+        })
+        .catch(() => {
+          map[r.name] = [];
         }),
     );
     await Promise.all(promises);
@@ -719,6 +759,16 @@
     ctx.stroke();
   }
 
+  function localDateKey(d) {
+    return (
+      d.getFullYear() +
+      "-" +
+      String(d.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(d.getDate()).padStart(2, "0")
+    );
+  }
+
   function bucketize(data, range) {
     const map = {};
     const now = new Date();
@@ -734,23 +784,25 @@
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const k = d.toISOString().slice(0, 10);
+        const k = localDateKey(d);
         const count = hasContrib ? contribMap[k] || 0 : 0;
         map[k] = { label: d.getMonth() + 1 + "/" + d.getDate(), count: count };
       }
       if (!hasContrib) {
         data.forEach((c) => {
-          const k = c.toISOString().slice(0, 10);
+          const k = localDateKey(c);
           if (map[k]) map[k].count++;
         });
       }
     } else if (range === "weeks") {
+      // Generate 12 week buckets
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i * 7);
+        // Find start of week (Sunday)
         const ws = new Date(d);
         ws.setDate(ws.getDate() - ws.getDay());
-        const k = ws.toISOString().slice(0, 10);
+        const k = localDateKey(ws);
         if (!map[k]) map[k] = { label: "W" + getWeekNum(ws), count: 0 };
       }
       if (hasContrib) {
@@ -758,14 +810,14 @@
           const d = new Date(c.date + "T00:00:00");
           const ws = new Date(d);
           ws.setDate(ws.getDate() - ws.getDay());
-          const k = ws.toISOString().slice(0, 10);
+          const k = localDateKey(ws);
           if (map[k]) map[k].count += c.count;
         });
       } else {
         data.forEach((c) => {
           const ws = new Date(c);
           ws.setDate(ws.getDate() - ws.getDay());
-          const k = ws.toISOString().slice(0, 10);
+          const k = localDateKey(ws);
           if (map[k]) map[k].count++;
         });
       }
@@ -786,7 +838,8 @@
       ];
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const k = d.toISOString().slice(0, 7);
+        const k =
+          d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
         map[k] = { label: months[d.getMonth()], count: 0 };
       }
       if (hasContrib) {
@@ -796,7 +849,8 @@
         });
       } else {
         data.forEach((c) => {
-          const k = c.toISOString().slice(0, 7);
+          const k =
+            c.getFullYear() + "-" + String(c.getMonth() + 1).padStart(2, "0");
           if (map[k]) map[k].count++;
         });
       }
@@ -822,8 +876,57 @@
 
     const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
-    // Use ALL event timestamps, not just commits
-    allEventDates.forEach((d) => matrix[d.getDay()][d.getHours()]++);
+
+    // Strategy: combine contributions (full year, day-level) with
+    // event timestamps (limited but has hour precision) to synthesize
+    // a rich Day×Hour heatmap.
+
+    // Step 1: Build hour distribution per day-of-week from events
+    const eventDayHour = Array.from({ length: 7 }, () => Array(24).fill(0));
+    allEventDates.forEach((d) => eventDayHour[d.getDay()][d.getHours()]++);
+
+    // Step 2: Build day-of-week totals from contributions (full year)
+    const contribDayTotals = Array(7).fill(0);
+    if (contributions.length) {
+      contributions.forEach((c) => {
+        if (c.count > 0) {
+          const d = new Date(c.date + "T00:00:00");
+          contribDayTotals[d.getDay()] += c.count;
+        }
+      });
+    }
+
+    // Step 3: For each day-of-week, distribute contribution total
+    // across hours using the observed event hour pattern for that day.
+    // If no event data for a day, use global hour distribution.
+    const globalHour = Array(24).fill(0);
+    allEventDates.forEach((d) => globalHour[d.getHours()]++);
+    const globalHourTotal = globalHour.reduce((s, v) => s + v, 0) || 1;
+
+    for (let day = 0; day < 7; day++) {
+      const dayEventTotal = eventDayHour[day].reduce((s, v) => s + v, 0);
+      const contribTotal = contribDayTotals[day];
+
+      if (contribTotal > 0 && dayEventTotal > 0) {
+        // Distribute contributions across hours using event hour pattern for this day
+        for (let h = 0; h < 24; h++) {
+          const hourShare = eventDayHour[day][h] / dayEventTotal;
+          matrix[day][h] = Math.round(contribTotal * hourShare);
+        }
+      } else if (contribTotal > 0) {
+        // No event data for this day — use global hour distribution
+        for (let h = 0; h < 24; h++) {
+          const hourShare = globalHour[h] / globalHourTotal;
+          matrix[day][h] = Math.round(contribTotal * hourShare);
+        }
+      } else {
+        // No contribution data — use raw event counts (fallback)
+        for (let h = 0; h < 24; h++) {
+          matrix[day][h] = eventDayHour[day][h];
+        }
+      }
+    }
+
     const max = Math.max(...matrix.flat(), 1);
 
     if (yLab)
@@ -1229,14 +1332,70 @@
   // ════════════════════════════════════════════════════════════
 
   function getRepoEventsMap() {
-    // Map repo name → array of event dates
+    // Map repo name → array of event dates (expand PushEvents by commit count)
+    // Enriched with yearly stats/commit_activity data
     const map = {};
+
+    // 1. Seed from events API (recent, has hour precision)
     ghEvents.forEach((ev) => {
       const repo = ev.repo ? ev.repo.name.split("/")[1] : null;
       if (!repo) return;
       if (!map[repo]) map[repo] = [];
-      map[repo].push(new Date(ev.created_at));
+      const d = new Date(ev.created_at);
+      if (ev.type === "PushEvent") {
+        const n =
+          ev.payload?.size ||
+          (ev.payload?.commits ? ev.payload.commits.length : 1);
+        for (let i = 0; i < n; i++) map[repo].push(d);
+      } else {
+        map[repo].push(d);
+      }
     });
+
+    // 2. Enrich with yearly stats/commit_activity (52 weeks, day-of-week precision)
+    //    For each repo, add synthetic dates for commits not covered by events
+    Object.entries(repoWeeklyStats).forEach(([repoName, weeks]) => {
+      if (!weeks.length) return;
+      if (!map[repoName]) map[repoName] = [];
+
+      // Count events we already have per week-start for this repo
+      const existingByWeek = {};
+      map[repoName].forEach((d) => {
+        const ws = new Date(d);
+        ws.setDate(ws.getDate() - ws.getDay());
+        const k = localDateKey(ws);
+        existingByWeek[k] = (existingByWeek[k] || 0) + 1;
+      });
+
+      weeks.forEach((weekData) => {
+        if (!weekData.week || !weekData.days) return;
+        const weekStart = new Date(weekData.week * 1000);
+        const wk = localDateKey(weekStart);
+        const existingCount = existingByWeek[wk] || 0;
+        const statsTotal = weekData.total || 0;
+
+        // Only add extra if stats reports more than what events gave us
+        const extra = Math.max(0, statsTotal - existingCount);
+        if (extra <= 0) return;
+
+        // Distribute extra commits across days proportionally to weekData.days
+        const daysTotal = weekData.days.reduce((s, v) => s + v, 0) || 1;
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const dayCommits = Math.round(
+            (weekData.days[dayIdx] / daysTotal) * extra,
+          );
+          if (dayCommits <= 0) continue;
+          const dayDate = new Date(weekStart);
+          dayDate.setDate(dayDate.getDate() + dayIdx);
+          // Set a reasonable hour (midday) since stats don't have hour data
+          dayDate.setHours(12, 0, 0, 0);
+          for (let c = 0; c < dayCommits; c++) {
+            map[repoName].push(dayDate);
+          }
+        }
+      });
+    });
+
     return map;
   }
 
@@ -1721,9 +1880,26 @@
     // Total events tracked
     const totalEvents = allEventDates.length;
 
+    // Average active hours per day (from contributions: days with count>0,
+    // estimate unique hours from event hour distribution)
+    let avgActiveHours = "—";
+    if (allEventDates.length > 0) {
+      // Group events by date string, count unique hours per day
+      const dayHours = {};
+      allEventDates.forEach((d) => {
+        const dk = d.toISOString().slice(0, 10);
+        if (!dayHours[dk]) dayHours[dk] = new Set();
+        dayHours[dk].add(d.getHours());
+      });
+      const days = Object.values(dayHours);
+      const totalUniqueHours = days.reduce((s, set) => s + set.size, 0);
+      avgActiveHours = (totalUniqueHours / days.length).toFixed(1) + "h";
+    }
+
     const items = [
       { icon: "clock", value: peakStr, label: "Peak Coding Hour" },
       { icon: "calendar", value: peakDayName, label: "Most Active Day" },
+      { icon: "timer", value: avgActiveHours, label: "Avg Active Hours/Day" },
       { icon: "moon", value: nightPct + "%", label: "Night Owl Index" },
       { icon: "trophy", value: bestMonth, label: "Best Month" },
       { icon: "code-2", value: topLang, label: "Top Language" },
@@ -1748,5 +1924,195 @@
       .join("");
 
     if (window.lucide) lucide.createIcons();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 13. DAILY ACTIVE HOURS TREND
+  // ════════════════════════════════════════════════════════════
+  function renderDailyHours() {
+    const canvas = document.getElementById("daily-hours-chart");
+    const loading = document.getElementById("daily-hours-loading");
+    const badge = document.getElementById("avg-hours-badge");
+    if (!canvas) return;
+    if (loading) loading.classList.add("hidden");
+
+    // Prefer contributions for full-year day coverage,
+    // combined with event hour patterns to estimate unique active hours per day.
+
+    // Step 1: From events, compute unique active hours per date
+    const eventDayHours = {};
+    allEventDates.forEach((d) => {
+      const dk = d.toISOString().slice(0, 10);
+      if (!eventDayHours[dk]) eventDayHours[dk] = new Set();
+      eventDayHours[dk].add(d.getHours());
+    });
+
+    // Step 2: Compute average unique hours per day from events
+    // (how many distinct hours we code on an active day)
+    const eventDaysArr = Object.values(eventDayHours);
+    const eventAvgHours = eventDaysArr.length
+      ? eventDaysArr.reduce((s, set) => s + set.size, 0) / eventDaysArr.length
+      : 3; // fallback estimate
+
+    // Step 3: Build 30-day series from contributions (most recent 30 days)
+    // For days with contributions, estimate active hours based on contribution count
+    // scaled by the event-derived average.
+    const now = new Date();
+    const buckets = [];
+
+    // Build contribution lookup
+    const contribMap = {};
+    contributions.forEach((c) => {
+      contribMap[c.date] = c.count;
+    });
+
+    // Find max daily contribution to normalize
+    const last30Contribs = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dk =
+        d.getFullYear() +
+        "-" +
+        String(d.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(d.getDate()).padStart(2, "0");
+      last30Contribs.push({ date: d, key: dk, count: contribMap[dk] || 0 });
+    }
+    const maxDailyContrib = Math.max(...last30Contribs.map((b) => b.count), 1);
+
+    for (const entry of last30Contribs) {
+      let hours = 0;
+      // If we have exact event data for this day, use it
+      if (eventDayHours[entry.key]) {
+        hours = eventDayHours[entry.key].size;
+      } else if (entry.count > 0) {
+        // Estimate: scale contributions → hours
+        // A day with max contributions ≈ eventAvgHours * 1.5 (busy day)
+        // A day with few contributions ≈ 1h minimum
+        const scale = entry.count / maxDailyContrib;
+        hours = Math.max(1, Math.round(scale * eventAvgHours * 1.5 * 10) / 10);
+      }
+      buckets.push({
+        label: entry.date.getMonth() + 1 + "/" + entry.date.getDate(),
+        value: hours,
+      });
+    }
+
+    // Average
+    const activeDays = buckets.filter((b) => b.value > 0);
+    const avg = activeDays.length
+      ? (
+          activeDays.reduce((s, b) => s + b.value, 0) / activeDays.length
+        ).toFixed(1)
+      : "0";
+    if (badge) badge.textContent = "Avg: " + avg + "h / active day (last 30d)";
+
+    // Draw area chart
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width,
+      H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const pad = { top: 16, right: 16, bottom: 28, left: 36 };
+    const cW = W - pad.left - pad.right;
+    const cH = H - pad.top - pad.bottom;
+    const max = Math.max(...buckets.map((b) => b.value), 1);
+    const step = cW / (buckets.length - 1 || 1);
+
+    // Grid lines
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (cH / 4) * i;
+      ctx.strokeStyle = "rgba(" + AC + ",.04)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(W - pad.right, y);
+      ctx.stroke();
+      const val = ((max / 4) * (4 - i)).toFixed(0);
+      ctx.fillStyle = "rgba(" + AC + ",.3)";
+      ctx.font = '9px "JetBrains Mono",monospace';
+      ctx.textAlign = "right";
+      ctx.fillText(val + "h", pad.left - 6, y + 3);
+    }
+
+    // Avg line
+    const avgY = pad.top + cH - (parseFloat(avg) / max) * cH;
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "rgba(" + AC + ",.3)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, avgY);
+    ctx.lineTo(W - pad.right, avgY);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = "rgba(" + AC + ",.4)";
+    ctx.font = '8px "JetBrains Mono",monospace';
+    ctx.textAlign = "left";
+    ctx.fillText("avg " + avg + "h", W - pad.right + 2, avgY + 3);
+
+    // Build path points
+    const points = buckets.map((b, i) => ({
+      x: pad.left + i * step,
+      y: pad.top + cH - (b.value / max) * cH,
+    }));
+
+    // Area fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+    grad.addColorStop(0, "rgba(" + AC + ",.18)");
+    grad.addColorStop(1, "rgba(" + AC + ",.01)");
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, pad.top + cH);
+    points.forEach((p) => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(points[points.length - 1].x, pad.top + cH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    points.forEach((p, i) =>
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y),
+    );
+    ctx.strokeStyle = "rgba(" + AC + ",.7)";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+
+    // Glow under line
+    ctx.save();
+    ctx.shadowColor = "rgba(" + AC + ",.4)";
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.restore();
+
+    // Dots
+    points.forEach((p, i) => {
+      if (buckets[i].value > 0) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#22d3ee";
+        ctx.shadowColor = "#22d3ee";
+        ctx.shadowBlur = 5;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    });
+
+    // X labels (every 5 days)
+    buckets.forEach((b, i) => {
+      if (i % 5 === 0 || i === buckets.length - 1) {
+        ctx.fillStyle = "rgba(" + AC + ",.25)";
+        ctx.font = '8px "JetBrains Mono",monospace';
+        ctx.textAlign = "center";
+        ctx.fillText(b.label, pad.left + i * step, H - pad.bottom + 14);
+      }
+    });
   }
 })();
