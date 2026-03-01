@@ -233,6 +233,14 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <div align="center">
 
+### 📡 Live Dashboard
+
+[![Dashboard](https://img.shields.io/badge/📊_Live_Dashboard-22d3ee?style=for-the-badge&logoColor=white)](https://destbreso.github.io/destbreso/)
+
+Interactive GitHub dashboard with real-time stats, contribution heatmap, coding-pattern radar, language donut chart, matrix rain canvas & more — all powered by the GitHub REST API.
+
+<br/>
+
 **🌐 [destbreso.com](https://destbreso.com)** — Full portfolio, blog & more
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0a0a0f,50:0e4f5c,100:22d3ee&height=100&section=footer" width="100%" />
