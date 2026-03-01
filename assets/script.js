@@ -1,400 +1,342 @@
 /* ================================================================
-   David Estevez — Personal Site Scripts
-   Terminal typing · Particle canvas · Scroll animations · Nav
+   destbreso — GitHub Dashboard Scripts
+   Matrix Rain · Charts · Live API data · Scroll animations
    ================================================================ */
-
 (function () {
   "use strict";
 
-  // ── Initialize Lucide icons ───────────────────────────────────
+  const GH_USER = "destbreso";
+  const AC = "34,211,238";
+
+  // ── State ──────────────────────────────────────────────────
+  let ghUser = null;
+  let ghRepos = [];
+  let ghEvents = [];
+  let commits = [];
+
   document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) lucide.createIcons();
-    initCanvas();
+    initMatrixRain();
     initTerminal();
+    initNav();
     initScrollAnimations();
-    initNavbar();
-    initCounters();
-    initGitHubInsights();
+    fetchGitHubData();
   });
 
-  // ════════════════════════════════════════════════════════════════
-  // 1. Particle Canvas Background
-  // ════════════════════════════════════════════════════════════════
-  function initCanvas() {
-    const canvas = document.getElementById("bg-canvas");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let w, h, particles, mouse;
-
-    const PARTICLE_COUNT = 80;
-    const CONNECTION_DIST = 150;
-    const MOUSE_DIST = 200;
-
-    mouse = { x: -9999, y: -9999 };
+  // ════════════════════════════════════════════════════════════
+  // 1. MATRIX RAIN CANVAS (interactive)
+  // ════════════════════════════════════════════════════════════
+  function initMatrixRain() {
+    const c = document.getElementById("matrix-canvas");
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    const chars =
+      "アイウエオカキクケコサシスセソタチツテトナニヌネノ" +
+      "ハヒフヘホマミムメモヤユヨラリルレロワヲン" +
+      "0123456789ABCDEF{}[]|:;=+-*#$%?!";
+    const fs = 14;
+    let w, h, cols, drops;
+    let mx = -9999,
+      my = -9999;
 
     function resize() {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
+      w = c.width = c.offsetWidth;
+      h = c.height = c.offsetHeight;
+      cols = Math.floor(w / fs) + 1;
+      drops = Array.from({ length: cols }, () => Math.random() * (h / fs) * -1);
     }
 
-    function createParticles() {
-      particles = [];
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
-        particles.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5,
-          r: Math.random() * 2 + 0.5,
-        });
-      }
-    }
+    function frame() {
+      ctx.fillStyle = "rgba(10,10,15,0.06)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.font = fs + "px monospace";
 
-    function draw() {
-      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < cols; i++) {
+        const x = i * fs;
+        const y = drops[i] * fs;
+        const ch = chars[Math.floor(Math.random() * chars.length)];
 
-      // Connections
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < CONNECTION_DIST) {
-            const alpha = (1 - dist / CONNECTION_DIST) * 0.15;
-            ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Mouse connections
-      for (const p of particles) {
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
+        const dx = x - mx,
+          dy = y - my;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < MOUSE_DIST) {
-          const alpha = (1 - dist / MOUSE_DIST) * 0.3;
-          ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
-          ctx.lineWidth = 0.8;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.stroke();
+
+        if (dist < 120) {
+          ctx.shadowColor = "#22d3ee";
+          ctx.shadowBlur = 15;
+          ctx.fillStyle = "#22d3ee";
+        } else {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = Math.random() > 0.97 ? "#fff" : "#00ff41";
         }
-      }
 
-      // Particles
-      for (const p of particles) {
-        ctx.fillStyle = "rgba(34, 211, 238, 0.5)";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+        ctx.fillText(ch, x, y);
+        ctx.shadowBlur = 0;
 
-    function update() {
-      for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
+        if (y > h && Math.random() > 0.975) drops[i] = 0;
+        drops[i] += 0.4 + Math.random() * 0.4;
       }
-    }
-
-    function loop() {
-      update();
-      draw();
-      requestAnimationFrame(loop);
+      requestAnimationFrame(frame);
     }
 
     resize();
-    createParticles();
-    loop();
+    ctx.fillStyle = "#0a0a0f";
+    ctx.fillRect(0, 0, w, h);
+    frame();
 
     window.addEventListener("resize", () => {
       resize();
-      createParticles();
+      ctx.fillStyle = "#0a0a0f";
+      ctx.fillRect(0, 0, w, h);
     });
-
-    window.addEventListener("mousemove", (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
+    c.addEventListener("mousemove", (e) => {
+      const r = c.getBoundingClientRect();
+      mx = e.clientX - r.left;
+      my = e.clientY - r.top;
+    });
+    c.addEventListener("mouseleave", () => {
+      mx = my = -9999;
     });
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // 2. Terminal Typing Animation
-  // ════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════
+  // 2. TERMINAL TYPING
+  // ════════════════════════════════════════════════════════════
   function initTerminal() {
     const cmdEl = document.getElementById("typed-cmd");
     const outEl = document.getElementById("terminal-output");
     if (!cmdEl || !outEl) return;
 
-    const command = "cat about.json";
-    const output = `{
-  <span class="accent">"name"</span>:     <span class="green">"David Estevez"</span>,
-  <span class="accent">"role"</span>:     <span class="green">"CTO @ Coverfleet"</span>,
-  <span class="accent">"based"</span>:    <span class="green">"Miami, FL"</span>,
-  <span class="accent">"focus"</span>:    <span class="green">"Architecture · AI · Distributed Systems"</span>,
-  <span class="accent">"loves"</span>:    <span class="purple">["math", "clean code", "open source"]</span>,
-  <span class="accent">"github"</span>:   <span class="green">"@destbreso"</span>
-}`;
-
+    const cmd = "gh dashboard @destbreso --live";
     let i = 0;
-    const cursor = document.querySelector(".terminal-cursor");
 
-    function typeCmd() {
-      if (i < command.length) {
-        cmdEl.textContent += command[i];
-        i++;
-        setTimeout(typeCmd, 60 + Math.random() * 40);
+    function type() {
+      if (i < cmd.length) {
+        cmdEl.textContent += cmd[i++];
+        setTimeout(type, 45 + Math.random() * 30);
       } else {
-        // Hide cursor briefly, show output
         setTimeout(() => {
-          if (cursor) cursor.style.display = "none";
-          outEl.innerHTML = `<pre>${output}</pre>`;
+          const cur = document.querySelector(".cursor");
+          if (cur) cur.style.display = "none";
+          outEl.innerHTML =
+            '<p class="t-line"><span class="t-ok">▸</span> Connecting to GitHub API...</p>' +
+            '<p class="t-line"><span class="t-ok">▸</span> Rendering live dashboard</p>' +
+            '<p class="t-line"><span class="t-ok">✓</span> <span class="t-accent">Dashboard ready</span></p>';
           outEl.style.opacity = "0";
-          outEl.style.transform = "translateY(8px)";
-          outEl.style.transition = "opacity .4s ease, transform .4s ease";
-          requestAnimationFrame(() => {
-            outEl.style.opacity = "1";
-            outEl.style.transform = "translateY(0)";
-          });
+          outEl.style.transition = "opacity .4s ease";
+          requestAnimationFrame(() => (outEl.style.opacity = "1"));
         }, 300);
       }
     }
-
-    // Start after a short delay
-    setTimeout(typeCmd, 800);
+    setTimeout(type, 800);
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // 3. Scroll Animations (IntersectionObserver)
-  // ════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════
+  // 3. NAV + SCROLL ANIMATIONS
+  // ════════════════════════════════════════════════════════════
+  function initNav() {
+    const nav = document.getElementById("navbar");
+    window.addEventListener("scroll", () => {
+      nav.classList.toggle("scrolled", window.scrollY > 20);
+    });
+  }
+
   function initScrollAnimations() {
     const els = document.querySelectorAll("[data-animate]");
     if (!els.length) return;
-
-    const observer = new IntersectionObserver(
+    const obs = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const delay = parseInt(entry.target.dataset.delay || "0", 10);
-            setTimeout(() => entry.target.classList.add("visible"), delay);
-            observer.unobserve(entry.target);
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            const delay = parseInt(e.target.dataset.delay || "0", 10);
+            setTimeout(() => e.target.classList.add("visible"), delay);
+            obs.unobserve(e.target);
           }
         });
       },
-      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+      { threshold: 0.1 },
     );
-
-    els.forEach((el) => observer.observe(el));
+    els.forEach((el) => obs.observe(el));
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // 4. Navbar (scroll effect + mobile toggle + active link)
-  // ════════════════════════════════════════════════════════════════
-  function initNavbar() {
-    const nav = document.getElementById("navbar");
-    const toggle = document.getElementById("nav-toggle");
-    const links = document.getElementById("nav-links");
-    const navLinks = document.querySelectorAll(".nav-link");
-    const sections = document.querySelectorAll("section[id]");
+  // ════════════════════════════════════════════════════════════
+  // 4. GITHUB API
+  // ════════════════════════════════════════════════════════════
+  async function fetchGitHubData() {
+    try {
+      const [userData, reposData] = await Promise.all([
+        fetch("https://api.github.com/users/" + GH_USER).then((r) =>
+          r.ok ? r.json() : null,
+        ),
+        fetch(
+          "https://api.github.com/users/" +
+            GH_USER +
+            "/repos?per_page=100&sort=pushed",
+        ).then((r) => (r.ok ? r.json() : [])),
+      ]);
 
-    // Scroll shadow
-    window.addEventListener("scroll", () => {
-      if (window.scrollY > 20) {
-        nav.classList.add("scrolled");
-      } else {
-        nav.classList.remove("scrolled");
-      }
-    });
+      ghUser = userData;
+      ghRepos = Array.isArray(reposData)
+        ? reposData.filter((r) => !r.fork)
+        : [];
 
-    // Mobile toggle
-    if (toggle && links) {
-      toggle.addEventListener("click", () => {
-        toggle.classList.toggle("open");
-        links.classList.toggle("open");
-      });
+      ghEvents = await fetchAllEvents();
+      commits = extractCommits(ghEvents.filter((e) => e.type === "PushEvent"));
 
-      // Close on link click
-      navLinks.forEach((link) => {
-        link.addEventListener("click", () => {
-          toggle.classList.remove("open");
-          links.classList.remove("open");
-        });
-      });
+      renderStats();
+      renderDistribution("days");
+      initDistTabs();
+      renderHeatmap();
+      renderLanguages();
+      renderRadar();
+      renderTimeline();
+      renderRepos();
+      renderInsights();
+
+      if (window.lucide) lucide.createIcons();
+    } catch (err) {
+      console.error("GitHub API error:", err);
+      hideAllLoaders();
     }
-
-    // Active link on scroll
-    const observerNav = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            navLinks.forEach((link) => {
-              link.classList.toggle(
-                "active",
-                link.getAttribute("href") === `#${entry.target.id}`,
-              );
-            });
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: "-80px 0px -60% 0px" },
-    );
-
-    sections.forEach((s) => observerNav.observe(s));
   }
 
-  // ════════════════════════════════════════════════════════════════
-  // 5. Stat Counter + Donut Ring Animations
-  // ════════════════════════════════════════════════════════════════
-  function initCounters() {
-    const counters = document.querySelectorAll("[data-count]");
-    if (!counters.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            animateCounter(entry.target);
-            // Also animate the ring if present in same .stat
-            const stat = entry.target.closest(".stat");
-            if (stat) {
-              const ring = stat.querySelector(".stat-ring-fill");
-              if (ring) animateRing(ring);
-            }
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.5 },
-    );
-
-    counters.forEach((c) => observer.observe(c));
-  }
-
-  function animateCounter(el) {
-    const target = parseInt(el.dataset.count, 10);
-    const duration = 1500;
-    const start = performance.now();
-
-    function tick(now) {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease-out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      el.textContent = Math.round(eased * target);
-      if (progress < 1) requestAnimationFrame(tick);
-    }
-
-    requestAnimationFrame(tick);
-  }
-
-  function animateRing(el) {
-    const percent = parseInt(el.dataset.percent, 10) || 0;
-    const circumference = parseFloat(el.getAttribute("stroke-dasharray"));
-    const target = circumference - (circumference * percent) / 100;
-    // Trigger after a micro-delay so the CSS transition fires
-    requestAnimationFrame(() => {
-      el.style.strokeDashoffset = target;
-      el.classList.add("animated");
-    });
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // 6. GitHub Insights (Live API)
-  // ════════════════════════════════════════════════════════════════
-  const GH_USER = "destbreso";
-  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const ACCENT = "34, 211, 238";
-
-  async function initGitHubInsights() {
-    const hideLoaders = () => {
-      ["dist-loading", "heatmap-loading"].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add("hidden");
-      });
-    };
-
-    const events = await fetchAllEvents();
-    if (!events.length) {
-      hideLoaders();
-      return;
-    }
-
-    const pushEvents = events.filter((e) => e.type === "PushEvent");
-    const commits = extractCommits(pushEvents);
-    if (!commits.length) {
-      hideLoaders();
-      return;
-    }
-
-    renderDistributionChart(commits, "days");
-    initDistributionTabs(commits);
-    renderHeatmap(commits);
-    renderInsightCards(commits, events);
-
-    // Re-init lucide for new icons
-    if (window.lucide) lucide.createIcons();
-  }
-
-  // ── Fetch paginated events ──────────────────────────────────
   async function fetchAllEvents() {
     const all = [];
-    try {
-      for (let page = 1; page <= 10; page++) {
+    for (let p = 1; p <= 10; p++) {
+      try {
         const res = await fetch(
-          `https://api.github.com/users/${GH_USER}/events?per_page=100&page=${page}`,
+          "https://api.github.com/users/" +
+            GH_USER +
+            "/events?per_page=100&page=" +
+            p,
         );
         if (!res.ok) break;
         const data = await res.json();
         if (!data.length) break;
         all.push(...data);
+      } catch {
+        break;
       }
-    } catch (e) {
-      console.warn("GitHub API fetch failed:", e);
     }
     return all;
   }
 
-  // ── Extract commit timestamps ───────────────────────────────
   function extractCommits(pushEvents) {
-    const commits = [];
+    const arr = [];
     for (const ev of pushEvents) {
-      const payload = ev.payload || {};
-      const count =
-        payload.size || (payload.commits ? payload.commits.length : 1);
+      const n =
+        ev.payload?.size ||
+        (ev.payload?.commits ? ev.payload.commits.length : 1);
       const date = new Date(ev.created_at);
-      // Add one entry per commit with the event timestamp
-      for (let i = 0; i < count; i++) {
-        commits.push(date);
-      }
+      for (let i = 0; i < n; i++) arr.push(date);
     }
-    return commits;
+    return arr;
   }
 
-  // ── Distribution Chart ──────────────────────────────────────
-  let currentRange = "days";
+  function hideAllLoaders() {
+    document
+      .querySelectorAll(".chart-loading")
+      .forEach((el) => el.classList.add("hidden"));
+  }
 
-  function initDistributionTabs(commits) {
+  // ════════════════════════════════════════════════════════════
+  // 5. STATS CARDS
+  // ════════════════════════════════════════════════════════════
+  function renderStats() {
+    const grid = document.getElementById("stats-grid");
+    if (!grid) return;
+
+    const totalStars = ghRepos.reduce(
+      (s, r) => s + (r.stargazers_count || 0),
+      0,
+    );
+
+    // Streak
+    const daySet = new Set(commits.map((c) => c.toISOString().slice(0, 10)));
+    const sorted = [...daySet].sort();
+    let maxStreak = sorted.length ? 1 : 0,
+      cur = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      const diff = (new Date(sorted[i]) - new Date(sorted[i - 1])) / 86400000;
+      if (diff === 1) {
+        cur++;
+        maxStreak = Math.max(maxStreak, cur);
+      } else cur = 1;
+    }
+
+    // Avg per week
+    const weeks = new Set(
+      commits.map((c) => {
+        const d = new Date(c);
+        return d.getFullYear() + "-W" + getWeekNum(d);
+      }),
+    );
+    const avgPerWeek = weeks.size ? Math.round(commits.length / weeks.size) : 0;
+
+    const stats = [
+      { icon: "folder-git-2", value: ghRepos.length, label: "Public Repos" },
+      {
+        icon: "git-commit-horizontal",
+        value: commits.length,
+        label: "Recent Commits",
+      },
+      { icon: "star", value: totalStars, label: "Total Stars" },
+      { icon: "flame", value: maxStreak, label: "Day Streak", suffix: "d" },
+      { icon: "trending-up", value: avgPerWeek, label: "Commits / Week" },
+      {
+        icon: "users",
+        value: ghUser ? ghUser.followers : 0,
+        label: "Followers",
+      },
+    ];
+
+    grid.innerHTML = stats
+      .map(
+        (s) => `
+      <div class="stat-card" data-animate="fade-up">
+        <div class="stat-icon"><i data-lucide="${s.icon}"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" data-count="${s.value}" data-suffix="${s.suffix || ""}">${s.value}${s.suffix || ""}</span>
+          <span class="stat-label">${s.label}</span>
+        </div>
+      </div>`,
+      )
+      .join("");
+
+    grid.querySelectorAll("[data-count]").forEach((el) => {
+      animateNum(el, parseInt(el.dataset.count, 10), el.dataset.suffix || "");
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function animateNum(el, target, suffix) {
+    const dur = 1200;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(eased * target) + suffix;
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 6. COMMIT DISTRIBUTION (bar chart)
+  // ════════════════════════════════════════════════════════════
+  function initDistTabs() {
     const tabs = document.querySelectorAll("#dist-tabs .chart-tab");
     tabs.forEach((tab) => {
       tab.addEventListener("click", () => {
         tabs.forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
-        currentRange = tab.dataset.range;
-        renderDistributionChart(commits, currentRange);
+        renderDistribution(tab.dataset.range);
       });
     });
   }
 
-  function renderDistributionChart(commits, range) {
-    const canvas = document.getElementById("distribution-chart");
+  function renderDistribution(range) {
+    const canvas = document.getElementById("dist-chart");
     const loading = document.getElementById("dist-loading");
     if (!canvas) return;
     if (loading) loading.classList.add("hidden");
@@ -405,279 +347,572 @@
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-    const W = rect.width;
-    const H = rect.height;
-
+    const W = rect.width,
+      H = rect.height;
     ctx.clearRect(0, 0, W, H);
 
     const buckets = bucketize(commits, range);
     if (!buckets.length) return;
 
-    const maxVal = Math.max(...buckets.map((b) => b.count), 1);
-    const padding = { top: 20, right: 16, bottom: 36, left: 44 };
-    const chartW = W - padding.left - padding.right;
-    const chartH = H - padding.top - padding.bottom;
-    const barW = Math.max(4, (chartW / buckets.length) * 0.65);
-    const gap = chartW / buckets.length;
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    const pad = { top: 16, right: 16, bottom: 32, left: 44 };
+    const cW = W - pad.left - pad.right;
+    const cH = H - pad.top - pad.bottom;
+    const barW = Math.max(3, (cW / buckets.length) * 0.6);
+    const gap = cW / buckets.length;
 
-    // Grid lines — subtle cyan tint
+    // Grid
     for (let i = 0; i <= 4; i++) {
-      const y = padding.top + (chartH / 4) * i;
-      ctx.strokeStyle = `rgba(${ACCENT}, 0.04)`;
+      const y = pad.top + (cH / 4) * i;
+      ctx.strokeStyle = "rgba(" + AC + ",.04)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(W - padding.right, y);
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(W - pad.right, y);
       ctx.stroke();
+
+      const val = Math.round((max / 4) * (4 - i));
+      ctx.fillStyle = "rgba(" + AC + ",.3)";
+      ctx.font = '9px "JetBrains Mono",monospace';
+      ctx.textAlign = "right";
+      ctx.fillText(val, pad.left - 8, y + 3);
     }
 
-    // Y-axis labels — cyan tinted
-    ctx.font = "10px 'JetBrains Mono', monospace";
-    ctx.textAlign = "right";
-    for (let i = 0; i <= 4; i++) {
-      const val = Math.round((maxVal / 4) * (4 - i));
-      const y = padding.top + (chartH / 4) * i;
-      ctx.fillStyle = `rgba(${ACCENT}, 0.3)`;
-      ctx.fillText(val, padding.left - 8, y + 3);
-    }
+    // Bars
+    buckets.forEach((b, idx) => {
+      const x = pad.left + idx * gap + (gap - barW) / 2;
+      const bH = (b.count / max) * cH;
+      const y = pad.top + cH - bH;
 
-    // Bars with glow
-    buckets.forEach((b, i) => {
-      const x = padding.left + i * gap + (gap - barW) / 2;
-      const barH = (b.count / maxVal) * chartH;
-      const y = padding.top + chartH - barH;
-
-      if (barH > 0) {
-        // Glow layer (wider, blurred)
+      if (bH > 0) {
         ctx.save();
-        ctx.shadowColor = `rgba(${ACCENT}, 0.35)`;
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.fillStyle = `rgba(${ACCENT}, 0.15)`;
-        ctx.fillRect(x - 1, y + 2, barW + 2, barH - 2);
+        ctx.shadowColor = "rgba(" + AC + ",.3)";
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = "rgba(" + AC + ",.12)";
+        ctx.fillRect(x - 1, y + 2, barW + 2, bH - 2);
         ctx.restore();
 
-        // Bar gradient — deeper at bottom
-        const grad = ctx.createLinearGradient(x, y, x, y + barH);
-        grad.addColorStop(0, `rgba(${ACCENT}, 0.95)`);
-        grad.addColorStop(0.6, `rgba(${ACCENT}, 0.6)`);
-        grad.addColorStop(1, `rgba(${ACCENT}, 0.2)`);
+        const grad = ctx.createLinearGradient(x, y, x, y + bH);
+        grad.addColorStop(0, "rgba(" + AC + ",.9)");
+        grad.addColorStop(1, "rgba(" + AC + ",.2)");
         ctx.fillStyle = grad;
 
-        // Rounded top
-        const r = Math.min(barW / 2, 4);
+        const r = Math.min(barW / 2, 3);
         ctx.beginPath();
         ctx.moveTo(x + r, y);
         ctx.lineTo(x + barW - r, y);
         ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-        ctx.lineTo(x + barW, y + barH);
-        ctx.lineTo(x, y + barH);
+        ctx.lineTo(x + barW, y + bH);
+        ctx.lineTo(x, y + bH);
         ctx.lineTo(x, y + r);
         ctx.quadraticCurveTo(x, y, x + r, y);
         ctx.fill();
-
-        // Top highlight line
-        ctx.strokeStyle = `rgba(${ACCENT}, 0.7)`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x + r, y + 0.5);
-        ctx.lineTo(x + barW - r, y + 0.5);
-        ctx.stroke();
       }
 
-      // X-axis label
-      const showEvery = buckets.length > 20 ? 5 : buckets.length > 10 ? 3 : 1;
-      if (i % showEvery === 0 || i === buckets.length - 1) {
-        ctx.fillStyle = `rgba(${ACCENT}, 0.25)`;
-        ctx.font = "9px 'JetBrains Mono', monospace";
+      const every = buckets.length > 20 ? 5 : buckets.length > 12 ? 3 : 1;
+      if (idx % every === 0 || idx === buckets.length - 1) {
+        ctx.fillStyle = "rgba(" + AC + ",.25)";
+        ctx.font = '8px "JetBrains Mono",monospace';
         ctx.textAlign = "center";
-        ctx.fillText(b.label, x + barW / 2, H - padding.bottom + 16);
+        ctx.fillText(b.label, x + barW / 2, H - pad.bottom + 14);
       }
     });
 
-    // Bottom axis line
-    ctx.strokeStyle = `rgba(${ACCENT}, 0.08)`;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(" + AC + ",.08)";
     ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top + chartH);
-    ctx.lineTo(W - padding.right, padding.top + chartH);
+    ctx.moveTo(pad.left, pad.top + cH);
+    ctx.lineTo(W - pad.right, pad.top + cH);
     ctx.stroke();
   }
 
-  function bucketize(commits, range) {
+  function bucketize(data, range) {
     const map = {};
     const now = new Date();
 
     if (range === "days") {
-      // Last 20 days
-      for (let i = 19; i >= 0; i--) {
+      for (let i = 29; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        map[key] = { label: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 };
+        const k = d.toISOString().slice(0, 10);
+        map[k] = { label: d.getMonth() + 1 + "/" + d.getDate(), count: 0 };
       }
-      commits.forEach((c) => {
-        const key = c.toISOString().slice(0, 10);
-        if (map[key]) map[key].count++;
+      data.forEach((c) => {
+        const k = c.toISOString().slice(0, 10);
+        if (map[k]) map[k].count++;
       });
     } else if (range === "weeks") {
-      // Last 12 weeks
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i * 7);
-        const weekStart = new Date(d);
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        const key = weekStart.toISOString().slice(0, 10);
-        if (!map[key]) {
-          map[key] = {
-            label: `W${getWeekNumber(weekStart)}`,
-            count: 0,
-            start: weekStart,
-          };
-        }
+        const ws = new Date(d);
+        ws.setDate(ws.getDate() - ws.getDay());
+        const k = ws.toISOString().slice(0, 10);
+        if (!map[k]) map[k] = { label: "W" + getWeekNum(ws), count: 0 };
       }
-      commits.forEach((c) => {
+      data.forEach((c) => {
         const ws = new Date(c);
         ws.setDate(ws.getDate() - ws.getDay());
-        const key = ws.toISOString().slice(0, 10);
-        if (map[key]) map[key].count++;
+        const k = ws.toISOString().slice(0, 10);
+        if (map[k]) map[k].count++;
       });
     } else {
-      // Last 6 months
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = d.toISOString().slice(0, 7);
-        const months = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        map[key] = { label: months[d.getMonth()], count: 0 };
+        const k = d.toISOString().slice(0, 7);
+        map[k] = { label: months[d.getMonth()], count: 0 };
       }
-      commits.forEach((c) => {
-        const key = c.toISOString().slice(0, 7);
-        if (map[key]) map[key].count++;
+      data.forEach((c) => {
+        const k = c.toISOString().slice(0, 7);
+        if (map[k]) map[k].count++;
       });
     }
-
     return Object.values(map);
   }
 
-  function getWeekNumber(d) {
-    const start = new Date(d.getFullYear(), 0, 1);
-    const diff = d - start;
-    return Math.ceil((diff / 86400000 + start.getDay() + 1) / 7);
+  function getWeekNum(d) {
+    const s = new Date(d.getFullYear(), 0, 1);
+    return Math.ceil(((d - s) / 86400000 + s.getDay() + 1) / 7);
   }
 
-  // ── Heatmap (Day × Hour) ───────────────────────────────────
-  function renderHeatmap(commits) {
-    const grid = document.getElementById("heatmap-grid");
-    const yLabels = document.getElementById("heatmap-y-labels");
-    const xLabels = document.getElementById("heatmap-x-labels");
-    const loading = document.getElementById("heatmap-loading");
+  // ════════════════════════════════════════════════════════════
+  // 7. ACTIVITY HEATMAP
+  // ════════════════════════════════════════════════════════════
+  function renderHeatmap() {
+    const grid = document.getElementById("hm-grid");
+    const yLab = document.getElementById("hm-y");
+    const xLab = document.getElementById("hm-x");
+    const loading = document.getElementById("hm-loading");
     if (!grid) return;
     if (loading) loading.classList.add("hidden");
 
-    // Build 7×24 matrix
+    const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
-    commits.forEach((c) => {
-      matrix[c.getDay()][c.getHours()]++;
-    });
+    commits.forEach((c) => matrix[c.getDay()][c.getHours()]++);
+    const max = Math.max(...matrix.flat(), 1);
 
-    const maxVal = Math.max(...matrix.flat(), 1);
+    if (yLab)
+      yLab.innerHTML = DAYS.map((d) => "<span>" + d + "</span>").join("");
 
-    // Day labels
-    if (yLabels) {
-      yLabels.innerHTML = "";
-      DAYS.forEach((d) => {
-        const s = document.createElement("span");
-        s.textContent = d;
-        yLabels.appendChild(s);
-      });
-    }
-
-    // Hour labels (every 2 hours)
-    if (xLabels) {
-      xLabels.innerHTML = "";
+    if (xLab) {
+      xLab.innerHTML = "";
       for (let h = 0; h < 24; h += 2) {
-        const s = document.createElement("span");
-        s.textContent =
-          h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
-        xLabels.appendChild(s);
+        const s =
+          h === 0 ? "12a" : h < 12 ? h + "a" : h === 12 ? "12p" : h - 12 + "p";
+        xLab.innerHTML += "<span>" + s + "</span>";
       }
     }
 
-    // Cells
     grid.innerHTML = "";
-    for (let day = 0; day < 7; day++) {
-      for (let hour = 0; hour < 24; hour++) {
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
         const cell = document.createElement("div");
-        cell.className = "heatmap-cell";
-        const val = matrix[day][hour];
-        const intensity = val / maxVal;
+        cell.className = "hm-cell";
+        const val = matrix[d][h];
+        const intensity = val / max;
 
         if (val > 0) {
           const alpha = 0.12 + intensity * 0.88;
-          cell.style.background = `rgba(${ACCENT}, ${alpha.toFixed(2)})`;
-          cell.style.borderColor = `rgba(${ACCENT}, ${(alpha * 0.35).toFixed(2)})`;
-
-          // Add glow classes based on intensity
-          if (intensity > 0.7) {
-            cell.classList.add("glow-high");
-          } else if (intensity > 0.4) {
-            cell.classList.add("glow-med");
-          } else {
-            cell.classList.add("glow-low");
-          }
+          cell.style.background = "rgba(" + AC + "," + alpha.toFixed(2) + ")";
+          if (intensity > 0.7) cell.classList.add("glow-hi");
+          else if (intensity > 0.4) cell.classList.add("glow-md");
         }
 
         const hStr =
-          hour === 0
+          h === 0
             ? "12am"
-            : hour < 12
-              ? `${hour}am`
-              : hour === 12
+            : h < 12
+              ? h + "am"
+              : h === 12
                 ? "12pm"
-                : `${hour - 12}pm`;
-        cell.setAttribute("data-tip", `${DAYS[day]} ${hStr}: ${val} commits`);
+                : h - 12 + "pm";
+        cell.setAttribute("data-tip", DAYS[d] + " " + hStr + ": " + val);
         grid.appendChild(cell);
       }
     }
   }
 
-  // ── Insight Cards ──────────────────────────────────────────
-  function renderInsightCards(commits, events) {
-    if (!commits.length) return;
+  // ════════════════════════════════════════════════════════════
+  // 8. LANGUAGE DONUT
+  // ════════════════════════════════════════════════════════════
+  function renderLanguages() {
+    const canvas = document.getElementById("lang-chart");
+    const list = document.getElementById("lang-list");
+    const loading = document.getElementById("lang-loading");
+    if (!canvas || !ghRepos.length) return;
+    if (loading) loading.classList.add("hidden");
+
+    const counts = {};
+    ghRepos.forEach((r) => {
+      if (r.language)
+        counts[r.language] = (counts[r.language] || 0) + (r.size || 1);
+    });
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7);
+    const total = sorted.reduce((s, x) => s + x[1], 0);
+
+    const langColors = {
+      TypeScript: "#3178c6",
+      JavaScript: "#f1e05a",
+      Python: "#3572a5",
+      HTML: "#e34c26",
+      CSS: "#563d7c",
+      Shell: "#89e051",
+      Dockerfile: "#384d54",
+      Vue: "#41b883",
+      Go: "#00add8",
+      Rust: "#dea584",
+      Java: "#b07219",
+    };
+    const fallback = [
+      "#22d3ee",
+      "#a78bfa",
+      "#4ade80",
+      "#f87171",
+      "#facc15",
+      "#fb923c",
+      "#38bdf8",
+    ];
+
+    const ctx = canvas.getContext("2d");
+    const size = Math.min(canvas.width, canvas.height);
+    const cx = size / 2,
+      cy = size / 2;
+    const outer = size / 2 - 8;
+    const inner = outer * 0.55;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let angle = -Math.PI / 2;
+    sorted.forEach(([lang, val], i) => {
+      const sweep = (val / total) * Math.PI * 2;
+      const color = langColors[lang] || fallback[i % fallback.length];
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer, angle, angle + sweep);
+      ctx.arc(cx, cy, inner, angle + sweep, angle, true);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      angle += sweep;
+    });
+
+    ctx.fillStyle = "#e0e0e8";
+    ctx.font = "bold 16px Inter,sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(sorted.length, cx, cy - 6);
+    ctx.fillStyle = "#55556a";
+    ctx.font = '9px "JetBrains Mono",monospace';
+    ctx.fillText("langs", cx, cy + 8);
+
+    if (list) {
+      list.innerHTML = sorted
+        .map(([lang, val], i) => {
+          const color = langColors[lang] || fallback[i % fallback.length];
+          const pct = ((val / total) * 100).toFixed(1);
+          return (
+            '<div class="lang-item">' +
+            '<span class="lang-dot" style="background:' +
+            color +
+            '"></span>' +
+            '<span class="lang-name">' +
+            lang +
+            "</span>" +
+            '<span class="lang-pct">' +
+            pct +
+            "%</span>" +
+            "</div>"
+          );
+        })
+        .join("");
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 9. CODING PATTERNS RADAR
+  // ════════════════════════════════════════════════════════════
+  function renderRadar() {
+    const canvas = document.getElementById("radar-chart");
+    if (!canvas || !commits.length) return;
+
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width,
+      H = rect.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const slots = Array(8).fill(0);
+    const labels = [
+      "00–03",
+      "03–06",
+      "06–09",
+      "09–12",
+      "12–15",
+      "15–18",
+      "18–21",
+      "21–24",
+    ];
+    commits.forEach((c) => {
+      slots[Math.floor(c.getHours() / 3)]++;
+    });
+
+    const n = 8;
+    const max = Math.max(...slots, 1);
+    const cx = W / 2,
+      cy = H / 2;
+    const R = Math.min(W, H) / 2 - 38;
+
+    // Grid circles
+    for (let lv = 1; lv <= 4; lv++) {
+      const r = (R / 4) * lv;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(" + AC + ",.06)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Axes + labels
+    for (let i = 0; i < n; i++) {
+      const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+      const ex = cx + Math.cos(a) * R;
+      const ey = cy + Math.sin(a) * R;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(ex, ey);
+      ctx.strokeStyle = "rgba(" + AC + ",.08)";
+      ctx.stroke();
+
+      const lx = cx + Math.cos(a) * (R + 24);
+      const ly = cy + Math.sin(a) * (R + 24);
+      ctx.fillStyle = "rgba(" + AC + ",.4)";
+      ctx.font = '9px "JetBrains Mono",monospace';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(labels[i], lx, ly);
+    }
+
+    // Data polygon
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+      const r = (slots[i] / max) * R;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(" + AC + ",.1)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(" + AC + ",.7)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Data points
+    for (let i = 0; i < n; i++) {
+      const a = ((Math.PI * 2) / n) * i - Math.PI / 2;
+      const r = (slots[i] / max) * R;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#22d3ee";
+      ctx.shadowColor = "#22d3ee";
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 10. TIMELINE
+  // ════════════════════════════════════════════════════════════
+  function renderTimeline() {
+    const feed = document.getElementById("timeline-feed");
+    const loading = document.getElementById("tl-loading");
+    if (!feed) return;
+    if (loading) loading.classList.add("hidden");
+
+    const icons = {
+      PushEvent: "git-commit-horizontal",
+      CreateEvent: "git-branch-plus",
+      DeleteEvent: "trash-2",
+      WatchEvent: "star",
+      ForkEvent: "git-fork",
+      IssuesEvent: "circle-dot",
+      PullRequestEvent: "git-pull-request",
+      ReleaseEvent: "tag",
+      IssueCommentEvent: "message-circle",
+      PullRequestReviewEvent: "eye",
+    };
+
+    const recent = ghEvents.slice(0, 25);
+
+    feed.innerHTML = recent
+      .map((ev) => {
+        const icon = icons[ev.type] || "activity";
+        const repo = ev.repo ? ev.repo.name.split("/")[1] : "?";
+        const time = relativeTime(new Date(ev.created_at));
+        let desc = ev.type.replace("Event", "");
+        if (ev.type === "PushEvent") {
+          const n =
+            ev.payload?.size ||
+            (ev.payload?.commits ? ev.payload.commits.length : 1);
+          desc = n + " commit" + (n > 1 ? "s" : "");
+        } else if (ev.type === "CreateEvent") {
+          desc = "Created " + (ev.payload?.ref_type || "ref");
+        } else if (ev.type === "WatchEvent") {
+          desc = "Starred";
+        } else if (ev.type === "ForkEvent") {
+          desc = "Forked";
+        }
+
+        return (
+          '<div class="tl-item">' +
+          '<div class="tl-icon"><i data-lucide="' +
+          icon +
+          '"></i></div>' +
+          '<div class="tl-body">' +
+          '<span class="tl-repo">' +
+          repo +
+          "</span>" +
+          '<span class="tl-desc">' +
+          desc +
+          "</span>" +
+          "</div>" +
+          '<span class="tl-time">' +
+          time +
+          "</span>" +
+          "</div>"
+        );
+      })
+      .join("");
+  }
+
+  function relativeTime(date) {
+    const s = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (s < 60) return "now";
+    if (s < 3600) return Math.floor(s / 60) + "m";
+    if (s < 86400) return Math.floor(s / 3600) + "h";
+    if (s < 604800) return Math.floor(s / 86400) + "d";
+    return Math.floor(s / 604800) + "w";
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 11. TOP REPOS
+  // ════════════════════════════════════════════════════════════
+  function renderRepos() {
+    const grid = document.getElementById("repos-grid");
+    const loading = document.getElementById("repos-loading");
+    if (!grid) return;
+    if (loading) loading.classList.add("hidden");
+
+    const langColors = {
+      TypeScript: "#3178c6",
+      JavaScript: "#f1e05a",
+      Python: "#3572a5",
+      HTML: "#e34c26",
+      CSS: "#563d7c",
+      Shell: "#89e051",
+    };
+
+    const top = ghRepos
+      .sort(
+        (a, b) =>
+          b.stargazers_count +
+          b.forks_count * 2 -
+          (a.stargazers_count + a.forks_count * 2),
+      )
+      .slice(0, 9);
+
+    grid.innerHTML = top
+      .map((r) => {
+        const lang = r.language || "—";
+        const color = langColors[lang] || "#8888a0";
+        return (
+          '<a href="' +
+          r.html_url +
+          '" target="_blank" rel="noopener" class="repo-card">' +
+          '<div class="repo-header">' +
+          '<i data-lucide="folder-git-2" class="repo-icon"></i>' +
+          "<h3>" +
+          r.name +
+          "</h3>" +
+          "</div>" +
+          '<p class="repo-desc">' +
+          (r.description || "No description") +
+          "</p>" +
+          '<div class="repo-meta">' +
+          '<span class="repo-lang"><span class="lang-dot" style="background:' +
+          color +
+          '"></span>' +
+          lang +
+          "</span>" +
+          (r.stargazers_count
+            ? '<span class="repo-stat"><i data-lucide="star"></i>' +
+              r.stargazers_count +
+              "</span>"
+            : "") +
+          (r.forks_count
+            ? '<span class="repo-stat"><i data-lucide="git-fork"></i>' +
+              r.forks_count +
+              "</span>"
+            : "") +
+          "</div>" +
+          "</a>"
+        );
+      })
+      .join("");
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // 12. INSIGHTS
+  // ════════════════════════════════════════════════════════════
+  function renderInsights() {
+    const grid = document.getElementById("insights-grid");
+    if (!grid || !commits.length) return;
 
     // Peak hour
-    const hourCounts = Array(24).fill(0);
-    commits.forEach((c) => hourCounts[c.getHours()]++);
-    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
-    const peakHourStr =
-      peakHour === 0
+    const hours = Array(24).fill(0);
+    commits.forEach((c) => hours[c.getHours()]++);
+    const peakH = hours.indexOf(Math.max(...hours));
+    const peakStr =
+      peakH === 0
         ? "12 AM"
-        : peakHour < 12
-          ? `${peakHour} AM`
-          : peakHour === 12
+        : peakH < 12
+          ? peakH + " AM"
+          : peakH === 12
             ? "12 PM"
-            : `${peakHour - 12} PM`;
-    setAnimatedText("insight-peak-hour", peakHourStr);
+            : peakH - 12 + " PM";
 
     // Peak day
-    const dayCounts = Array(7).fill(0);
-    commits.forEach((c) => dayCounts[c.getDay()]++);
-    const peakDay = dayCounts.indexOf(Math.max(...dayCounts));
-    const fullDays = [
+    const days = Array(7).fill(0);
+    const dayNames = [
       "Sunday",
       "Monday",
       "Tuesday",
@@ -686,97 +921,59 @@
       "Friday",
       "Saturday",
     ];
-    setAnimatedText("insight-peak-day", fullDays[peakDay]);
+    commits.forEach((c) => days[c.getDay()]++);
+    const peakD = days.indexOf(Math.max(...days));
 
-    // Longest streak (consecutive days with commits)
-    const daySet = new Set(commits.map((c) => c.toISOString().slice(0, 10)));
-    const sortedDays = [...daySet].sort();
-    let maxStreak = 1,
-      streak = 1;
-    for (let i = 1; i < sortedDays.length; i++) {
-      const prev = new Date(sortedDays[i - 1]);
-      const curr = new Date(sortedDays[i]);
-      const diff = (curr - prev) / 86400000;
-      if (diff === 1) {
-        streak++;
-        maxStreak = Math.max(maxStreak, streak);
-      } else {
-        streak = 1;
-      }
-    }
-    setAnimatedText("insight-streak", `${maxStreak} days`);
-
-    // Avg commits per week
-    const weeks = new Set(
-      commits.map((c) => {
-        const d = new Date(c);
-        return `${d.getFullYear()}-W${getWeekNumber(d)}`;
-      }),
-    );
-    const avgPerWeek = Math.round(commits.length / Math.max(weeks.size, 1));
-    setAnimatedText("insight-velocity", avgPerWeek.toString());
-
-    // Night owl index (% of commits between 10pm-6am)
-    const nightCommits = commits.filter((c) => {
+    // Night owl (10pm–6am)
+    const night = commits.filter((c) => {
       const h = c.getHours();
       return h >= 22 || h < 6;
     });
-    const nightPct = Math.round((nightCommits.length / commits.length) * 100);
-    setAnimatedText("insight-night", `${nightPct}%`);
+    const nightPct = Math.round((night.length / commits.length) * 100);
 
-    // Focus score (% of commits in the peak 3-hour window)
-    let maxWindow = 0;
-    for (let start = 0; start < 24; start++) {
-      const windowSum =
-        hourCounts[start] +
-        hourCounts[(start + 1) % 24] +
-        hourCounts[(start + 2) % 24];
-      maxWindow = Math.max(maxWindow, windowSum);
+    // Focus (best 3h window)
+    let maxWin = 0;
+    for (let s = 0; s < 24; s++) {
+      const w = hours[s] + hours[(s + 1) % 24] + hours[(s + 2) % 24];
+      maxWin = Math.max(maxWin, w);
     }
-    const focusPct = Math.round((maxWindow / commits.length) * 100);
-    setAnimatedText("insight-focus", `${focusPct}%`);
-  }
+    const focusPct = Math.round((maxWin / commits.length) * 100);
 
-  /**
-   * Set text on an insight card with a count-up animation for numeric parts.
-   * Non-numeric text (like day names) gets a quick reveal effect.
-   */
-  function setAnimatedText(id, text) {
-    const el = document.getElementById(id);
-    if (!el) return;
+    // Top language
+    const langCounts = {};
+    ghRepos.forEach((r) => {
+      if (r.language)
+        langCounts[r.language] = (langCounts[r.language] || 0) + (r.size || 1);
+    });
+    const topLang =
+      Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
-    // Extract leading number if present (e.g. "42%", "12 PM", "7 days")
-    const numMatch = text.match(/^(\d+)/);
-    if (numMatch) {
-      const target = parseInt(numMatch[1], 10);
-      const suffix = text.slice(numMatch[1].length); // e.g. " days", "%", " AM"
-      const duration = 1200;
-      const start = performance.now();
+    const items = [
+      { icon: "clock", value: peakStr, label: "Peak Coding Hour" },
+      { icon: "calendar", value: dayNames[peakD], label: "Most Active Day" },
+      { icon: "moon", value: nightPct + "%", label: "Night Owl Index" },
+      { icon: "target", value: focusPct + "%", label: "Focus Score" },
+      { icon: "code-2", value: topLang, label: "Top Language" },
+      { icon: "activity", value: ghEvents.length, label: "API Events" },
+    ];
 
-      function tick(now) {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        el.textContent = Math.round(eased * target) + suffix;
-        if (progress < 1) requestAnimationFrame(tick);
-      }
+    grid.innerHTML = items
+      .map(
+        (it) =>
+          '<div class="insight-card">' +
+          '<div class="insight-icon"><i data-lucide="' +
+          it.icon +
+          '"></i></div>' +
+          '<span class="insight-value">' +
+          it.value +
+          "</span>" +
+          '<span class="insight-label">' +
+          it.label +
+          "</span>" +
+          "</div>",
+      )
+      .join("");
 
-      // Observe visibility before animating
-      const obs = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              requestAnimationFrame(tick);
-              obs.unobserve(el);
-            }
-          });
-        },
-        { threshold: 0.3 },
-      );
-      obs.observe(el);
-    } else {
-      // Text-only value: just set it (e.g. "Wednesday")
-      el.textContent = text;
-    }
+    if (window.lucide) lucide.createIcons();
   }
 })();
