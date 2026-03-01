@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-MATRIX RAIN CONTRIBUTIONS — v2
-===============================
-Full Matrix-style code rain with real characters (Katakana, Latin, digits)
-that falls through a tall sky zone and accumulates to reveal the weekly
-contribution graph.  The silhouette is ALWAYS visible as a dim ghost
-shadow, so the shape is never fully lost.  Rain fills the bars with bright
-green, holds, then partially drains — but the ghost residue always remains.
+MATRIX RAIN CONTRIBUTIONS — v3 (push / pull)
+=============================================
+Continuous Matrix-style code rain with a push/pull equilibrium:
+  - Bars naturally DRAIN over time (gravity)
+  - Rain FILLS the bars as drops fall on them
+  - Rain intensity ∝ emptiness: more empty → heavier rain; full → faint rain
+  - No interruptions, no on/off windows — smooth organic animation
 
 Visual layers (bottom → top):
   1. Background + board
   2. Ghost silhouette (always visible, dim ~0.08)
-  3. Fill bars (animated, green→cyan, ghost_h → bar_h → ghost_h)
-  4. Rain streams (real characters: bright head, fading tail)
+  3. Fill bars (animated wave: quick fill / slow drain, cycles per column)
+  4. Rain streams (real characters, opacity inverse of bar fill)
   5. Surface glow line
   6. Title + labels
 
@@ -104,6 +104,48 @@ def skt(times):
     return ";".join(str(k) for k in kt)
 
 
+def gen_column_wave(norm, col_idx, n_samples=36):
+    """Generate a smooth fill/drain wave for one column.
+
+    Returns list of (t, v) where t ∈ [0,1] and v ∈ [0,1].
+    v = fill fraction (0 = ghost residue, 1 = full bar).
+    Loops seamlessly.  Higher *norm* → taller peaks, more bumps.
+    Each bump: fast fill (rain pouring) then slow exponential drain.
+    """
+    rng = random.Random(col_idx * 7 + 13)
+    n_bumps = max(2, min(5, round(2 + norm * 3)))
+    peak = max(0.15, min(1.0, norm + rng.uniform(-0.05, 0.05)))
+
+    bumps = []
+    for b in range(n_bumps):
+        c = (b + 0.5) / n_bumps + rng.uniform(-0.06, 0.06)
+        c = c % 1.0
+        w = 0.85 / n_bumps
+        bumps.append((c, w))
+
+    dt = 1.0 / n_samples
+    pts = []
+    for i in range(n_samples + 1):
+        t = min(i * dt, 1.0)
+        val = 0.0
+        for (c, w) in bumps:
+            d = t - c
+            if d > 0.5:  d -= 1.0
+            if d < -0.5: d += 1.0
+            fw = w * 0.20          # fast fill (20 % of bump width)
+            dw = w * 0.80          # slow drain (80 %)
+            if -fw < d <= 0:
+                frac = 1.0 - abs(d) / fw
+                val = max(val, peak * frac ** 0.5)
+            elif 0 < d < dw:
+                frac = d / dw
+                val = max(val, peak * (1.0 - frac) ** 2.5)
+        pts.append((t, val))
+
+    pts[-1] = (1.0, pts[0][1])          # seamless loop
+    return pts
+
+
 # ── SVG generator ─────────────────────────────────────────────
 def generate_svg(cal):
     weeks = cal["weeks"]
@@ -117,6 +159,14 @@ def generate_svg(cal):
     if max_week == 0:
         max_week = 1
     norms = [wt / max_week for wt in week_totals]
+
+    # ── Pre-compute fill/drain wave per column ────────────────
+    col_waves = []
+    for ci, (n, wt) in enumerate(zip(norms, week_totals)):
+        if wt == 0:
+            col_waves.append(None)
+        else:
+            col_waves.append(gen_column_wave(n, ci))
 
     # ── dimensions ────────────────────────────────────────────
     grid_w    = nw * COL_STEP - COL_GAP
@@ -236,19 +286,14 @@ def generate_svg(cal):
             )
         s.append("</g>")
 
-    # ── main rain streams ─────────────────────────────────────
-    # Two rain windows per cycle:
-    #   Window-1  0.2 → 8.0   (heavy, fills bars)
-    #   Window-2  13.0 → 18.0 (lighter, decorative while draining)
-    R1_ON = 0.2;  R1_OFF = 8.0
-    R2_ON = 13.0; R2_OFF = 18.0
-
+    # ── main rain streams (continuous · opacity ∝ emptiness) ─
     for si in range(nw):
+        wave = col_waves[si]
         # Skip empty columns most of the time
-        if week_totals[si] == 0 and random.random() > 0.25:
+        if wave is None and random.random() > 0.25:
             continue
 
-        col_cx = gx + si * COL_STEP + COL_W // 2  # column center-x
+        col_cx = gx + si * COL_STEP + COL_W // 2
 
         # 1-3 streams per column
         n_streams = 1
@@ -257,28 +302,31 @@ def generate_svg(cal):
         elif si % 2 == 0:
             n_streams = 2
 
+        # Column-level opacity animated as INVERSE of fill wave
+        # → heavy rain when bar is empty, faint rain when full
+        if wave is not None:
+            pk = max(v for _, v in wave) or 0.01
+            o_kt = ";".join(f"{t:.5f}" for t, _ in wave)
+            o_vs = ";".join(
+                f"{0.06 + 0.78 * max(0, 1.0 - v / pk):.3f}"
+                for _, v in wave
+            )
+            s.append(f'<g>')
+            s.append(
+                f'<animate attributeName="opacity" dur="{CYCLE}s" '
+                f'repeatCount="indefinite" keyTimes="{o_kt}" values="{o_vs}"/>'
+            )
+        else:
+            s.append(f'<g opacity="0.06">')
+
         for sn in range(n_streams):
             slen = random.randint(6, 18)
             fdur = 2.0 + random.random() * 3.0
-            xoff = (sn - (n_streams - 1) / 2) * 3.5  # spread around col center
+            xoff = (sn - (n_streams - 1) / 2) * 3.5
             fdel = sn * 0.6 + random.random() * 1.2
             fdist = content_h + slen * CHAR_STEP
 
-            # Opacity envelope: visible in rain windows, hidden otherwise
-            rt = [0, R1_ON, R1_OFF - 0.5, R1_OFF,
-                  R2_ON, R2_ON + 0.4, R2_OFF - 0.4, R2_OFF, CYCLE]
-            rv = [0, 0.8, 0.8, 0,
-                  0, 0.5, 0.5, 0, 0]
-            rkt = skt(rt)
-            rvs = ";".join(str(v) for v in rv)
-
-            s.append(f'<g opacity="0">')
-            s.append(
-                f'<animate attributeName="opacity" dur="{CYCLE}s" '
-                f'repeatCount="indefinite" keyTimes="{rkt}" values="{rvs}"/>'
-            )
-
-            # Falling motion (continuous loop independent of opacity)
+            # Falling motion (always looping — never pauses)
             s.append("<g>")
             s.append(
                 f'<animateTransform attributeName="transform" type="translate" '
@@ -292,7 +340,6 @@ def generate_svg(cal):
                 px = col_cx + xoff
 
                 if ci == slen - 1:
-                    # HEAD — white, glow filter
                     s.append(
                         f'<text x="{px:.1f}" y="{cy}" text-anchor="middle" '
                         f'filter="url(#glo)" '
@@ -300,7 +347,6 @@ def generate_svg(cal):
                         f'fill:#ffffff">{ch}</text>'
                     )
                 elif ci >= slen - 3:
-                    # Near-head — bright green
                     a = 0.65 + 0.25 * ((ci - (slen - 3)) / 2)
                     s.append(
                         f'<text x="{px:.1f}" y="{cy}" text-anchor="middle" '
@@ -309,7 +355,6 @@ def generate_svg(cal):
                         f'fill:{RAIN_BRT}">{ch}</text>'
                     )
                 elif ci >= slen // 2:
-                    # Mid — medium green
                     a = 0.2 + 0.35 * ((ci - slen // 2) / max(slen // 2, 1))
                     s.append(
                         f'<text x="{px:.1f}" y="{cy}" text-anchor="middle" '
@@ -318,7 +363,6 @@ def generate_svg(cal):
                         f'fill:{RAIN_MED}">{ch}</text>'
                     )
                 else:
-                    # Tail — dim
                     a = 0.06 + 0.12 * (ci / max(slen // 2, 1))
                     s.append(
                         f'<text x="{px:.1f}" y="{cy}" text-anchor="middle" '
@@ -328,66 +372,58 @@ def generate_svg(cal):
                     )
 
             s.append("</g>")  # falling motion
-            s.append("</g>")  # opacity envelope
+
+        s.append("</g>")  # column opacity group
 
     s.append("</g>")  # rain clip group
 
     # ═══════════════════════════════════════════════════════════
-    #  ANIMATED FILL BARS  (bars never go to 0; ghost_h remains)
+    #  ANIMATED FILL BARS  (continuous wave: rain fills ↔ drain)
     # ═══════════════════════════════════════════════════════════
-    # Timeline per bar:
-    #   0      → fill_start  : ghost_h  (residue visible)
-    #   fill_s → fill_end    : grow to bar_h
-    #   fill_e → 11.0        : hold at bar_h
-    #   11.0   → drain_end   : shrink to ghost_h
-    #   drain  → CYCLE       : stay at ghost_h (ready for next loop)
-
     for i, (h_norm, wt) in enumerate(zip(norms, week_totals)):
         if wt == 0:
+            continue
+        wave = col_waves[i]
+        if wave is None:
             continue
 
         x = gx + i * COL_STEP
         bar_h   = max(h_norm * BAR_MAX_H, 4)
         ghost_h = max(bar_h * 0.12, 2)
 
-        fill_s  = 0.5
-        fill_d  = 1.8 + h_norm * 5.5
-        fill_e  = fill_s + fill_d
-        hold_e  = 11.0
-        drain_d = 1.5 + h_norm * 4.5
-        drain_e = min(hold_e + drain_d, 19.5)
+        # Convert wave fill fractions → pixel heights / y positions
+        h_kt = ";".join(f"{t:.5f}" for t, _ in wave)
+        h_vs = ";".join(
+            f"{ghost_h + (bar_h - ghost_h) * v:.1f}" for _, v in wave
+        )
+        y_vs = ";".join(
+            f"{base_y - (ghost_h + (bar_h - ghost_h) * v):.1f}"
+            for _, v in wave
+        )
 
-        bt  = [0,       fill_s,  fill_e, hold_e, drain_e, CYCLE]
-        bhv = [ghost_h, ghost_h, bar_h,  bar_h,  ghost_h, ghost_h]
-        byv = [base_y - ghost_h, base_y - ghost_h,
-               base_y - bar_h,   base_y - bar_h,
-               base_y - ghost_h, base_y - ghost_h]
-
-        bkt = skt(bt)
-        bhs = ";".join(f"{v:.1f}" for v in bhv)
-        bys = ";".join(f"{v:.1f}" for v in byv)
+        init_h = ghost_h + (bar_h - ghost_h) * wave[0][1]
+        init_y = base_y - init_h
 
         # Filled bar
         s.append(
-            f'<rect x="{x}" y="{base_y - ghost_h:.1f}" width="{COL_W}" '
-            f'height="{ghost_h:.1f}" fill="url(#bf)" rx="1">'
+            f'<rect x="{x}" y="{init_y:.1f}" width="{COL_W}" '
+            f'height="{init_h:.1f}" fill="url(#bf)" rx="1">'
             f'<animate attributeName="height" dur="{CYCLE}s" '
-            f'repeatCount="indefinite" keyTimes="{bkt}" values="{bhs}"/>'
+            f'repeatCount="indefinite" keyTimes="{h_kt}" values="{h_vs}"/>'
             f'<animate attributeName="y" dur="{CYCLE}s" '
-            f'repeatCount="indefinite" keyTimes="{bkt}" values="{bys}"/>'
+            f'repeatCount="indefinite" keyTimes="{h_kt}" values="{y_vs}"/>'
             f"</rect>"
         )
 
-        # Surface glow line at top of bar
-        gov = [0.12, 0.12, 0.7, 0.7, 0.12, 0.12]
-        gos = ";".join(str(v) for v in gov)
+        # Surface glow line (brighter when bar is fuller)
+        glow_vs = ";".join(f"{0.08 + 0.62 * v:.3f}" for _, v in wave)
         s.append(
-            f'<rect x="{x}" y="{base_y - ghost_h:.1f}" width="{COL_W}" '
-            f'height="2" fill="{RAIN_BRT}" opacity="0.12" rx="1">'
+            f'<rect x="{x}" y="{init_y:.1f}" width="{COL_W}" '
+            f'height="2" fill="{RAIN_BRT}" opacity="0.08" rx="1">'
             f'<animate attributeName="y" dur="{CYCLE}s" '
-            f'repeatCount="indefinite" keyTimes="{bkt}" values="{bys}"/>'
+            f'repeatCount="indefinite" keyTimes="{h_kt}" values="{y_vs}"/>'
             f'<animate attributeName="opacity" dur="{CYCLE}s" '
-            f'repeatCount="indefinite" keyTimes="{bkt}" values="{gos}"/>'
+            f'repeatCount="indefinite" keyTimes="{h_kt}" values="{glow_vs}"/>'
             f"</rect>"
         )
 
