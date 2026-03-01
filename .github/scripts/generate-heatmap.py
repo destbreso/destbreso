@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-ACTIVITY HEATMAP
-================
-Day of Week × Hour of Day contribution heatmap SVG.
-Uses the GitHub Stats Punch Card API across ALL owned repos
-for full historical data (not just last 90 days).
+ACTIVITY HEATMAP — Ant Pathfinding Edition
+==========================================
+Day-of-Week × Hour-of-Day heatmap with an animated ant that:
+  1. Spawns at a random low-activity cell
+  2. Navigates to a *food target* using A* pathfinding
+  3. "Eats through" wall cells — thicker walls take longer to chew
+  4. Leaves a glowing trail behind
+  5. Celebrates reaching the target
+  6. Resets and loops seamlessly
 
+SMIL-only (GitHub-safe — no CSS, no JS).
 Generates: dist/activity-heatmap.svg
 Requires:  GITHUB_TOKEN env variable
 """
 
-import json
-import os
-import time
-import urllib.request
+import heapq, json, math, os, random, time, urllib.request
 
 # ── Config ─────────────────────────────────────────────────────────
 USERNAME = "destbreso"
@@ -126,6 +128,53 @@ def build_matrix(repos):
     return matrix
 
 
+# ── A* Pathfinding ─────────────────────────────────────────────────
+def astar(matrix, start, goal, max_val):
+    """A* on the 7×24 grid.  Cost to enter a cell = 1 + 4*(val/max_val).
+    Empty cells cost 1 step, max-activity cells cost 5 steps (thick wall).
+    Returns list of (row, col) from start to goal inclusive."""
+    rows, cols = 7, 24
+
+    def h(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    open_set = [(h(start, goal), 0, start)]
+    came_from = {}
+    g_score = {start: 0}
+
+    while open_set:
+        _, gc, current = heapq.heappop(open_set)
+        if current == goal:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.append(start)
+            return path[::-1]
+
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nr, nc = current[0] + dr, current[1] + dc
+            if 0 <= nr < rows and 0 <= nc < cols:
+                val = matrix[nr][nc]
+                cost = 1.0 + 4.0 * (val / max_val)
+                ng = gc + cost
+                nb = (nr, nc)
+                if nb not in g_score or ng < g_score[nb]:
+                    g_score[nb] = ng
+                    came_from[nb] = current
+                    heapq.heappush(open_set, (ng + h(nb, goal), ng, nb))
+    # Fallback: direct walk (shouldn't happen on 7×24)
+    path = [start]
+    r, c = start
+    while (r, c) != goal:
+        if r < goal[0]: r += 1
+        elif r > goal[0]: r -= 1
+        elif c < goal[1]: c += 1
+        elif c > goal[1]: c -= 1
+        path.append((r, c))
+    return path
+
+
 # ── SVG generation ─────────────────────────────────────────────────
 def generate_svg(matrix):
     pad = 16
@@ -135,7 +184,7 @@ def generate_svg(matrix):
     label_w = 32
     hour_h = 14
     legend_h = 24
-    legend_gap = 10
+    legend_gap = 12
 
     grid_w = 24 * STEP
     grid_h = 7 * STEP
@@ -154,56 +203,100 @@ def generate_svg(matrix):
     if max_val == 0:
         max_val = 1
 
-    s = []
-    s.append(
-        f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
-    )
+    # ── Pick ant start, target, and compute path ──────────────
+    rng = random.Random(7)
 
-    # ── Defs ───────────────────────────────────────────────────
-    s.append("<defs>")
+    # Classify cells by weight
+    empties = []
+    lights = []
+    heavies = []
+    for r in range(7):
+        for c in range(24):
+            ratio = matrix[r][c] / max_val
+            if ratio == 0:
+                empties.append((r, c))
+            elif ratio <= 0.25:
+                lights.append((r, c))
+            elif ratio > 0.5:
+                heavies.append((r, c))
 
-    # Scan-line gradient: transparent → accent glow → transparent
-    s.append(
-        '<linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">'
-        '<stop offset="0%"   stop-color="#22d3ee" stop-opacity="0"/>'
-        '<stop offset="40%"  stop-color="#22d3ee" stop-opacity="0.12"/>'
-        '<stop offset="50%"  stop-color="#22d3ee" stop-opacity="0.25"/>'
-        '<stop offset="60%"  stop-color="#22d3ee" stop-opacity="0.12"/>'
-        '<stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>'
-        '</linearGradient>'
-    )
+    # Start: prefer empty/light cells on the left side
+    start_pool = [p for p in (empties + lights) if p[1] < 12]
+    if not start_pool:
+        start_pool = empties + lights
+    if not start_pool:
+        start_pool = [(0, 0)]
+    ant_start = rng.choice(start_pool)
 
-    # Soft glow filter for the scan bar
-    s.append(
-        '<filter id="scanGlow" x="-20%" y="-20%" width="140%" height="140%">'
-        '<feGaussianBlur stdDeviation="3" result="b"/>'
-        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
-        '</filter>'
-    )
+    # Target: prefer a heavy cell far from start
+    target_pool = heavies if heavies else lights if lights else [(6, 23)]
+    target_pool.sort(key=lambda p: -(abs(p[0]-ant_start[0]) + abs(p[1]-ant_start[1])))
+    ant_target = target_pool[0] if target_pool else (6, 23)
 
-    s.append("</defs>")
+    path = astar(matrix, ant_start, ant_target, max_val)
 
-    # Inline style constants (GitHub strips <style> blocks from SVGs)
+    # ── Timing ────────────────────────────────────────────────
+    # Each step: base 0.12s + wall thickness bonus (up to 0.48s for max walls)
+    step_times = []
+    t = 0.0
+    for r, c in path:
+        ratio = matrix[r][c] / max_val
+        dur = 0.12 + 0.48 * ratio  # eating through thick walls is slow
+        step_times.append(t)
+        t += dur
+    walk_dur = t
+    celebrate_dur = 1.8       # celebration at target
+    fade_dur = 1.2            # trail fades out + reset
+    total_dur = walk_dur + celebrate_dur + fade_dur
+
+    # ── Inline styles ─────────────────────────────────────────
     title_style = f"font-family:monospace;font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px"
     sub_style = f"font-family:monospace;font-size:8px;fill:{DIM}"
     day_style = f"font-family:monospace;font-size:7.5px;fill:{DIM}"
     hr_style = f"font-family:monospace;font-size:6.5px;fill:{DIM}"
     leg_style = f"font-family:monospace;font-size:7px;fill:{MUTED}"
 
-    # Background
+    s = []
+
+    # ── Root SVG ──────────────────────────────────────────────
+    s.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}">'
+    )
+
+    # ── Defs ──────────────────────────────────────────────────
+    s.append("<defs>")
+
+    # Glow filter for ant head / target
+    s.append(
+        '<filter id="glo" x="-60%" y="-60%" width="220%" height="220%">'
+        '<feGaussianBlur stdDeviation="2" result="b"/>'
+        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
+        '</filter>'
+    )
+    # Celebration burst filter
+    s.append(
+        '<filter id="burst" x="-100%" y="-100%" width="300%" height="300%">'
+        '<feGaussianBlur stdDeviation="4" result="b"/>'
+        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
+        '</filter>'
+    )
+
+    s.append("</defs>")
+
+    # ── Background ────────────────────────────────────────────
     s.append(f'<rect width="{svg_w}" height="{svg_h}" rx="10" fill="{BG}"/>')
 
-    # Title + subtitle
+    # ── Title ─────────────────────────────────────────────────
     ty = pad + 12
     s.append(f'<text x="{pad}" y="{ty}" style="{title_style}">▸ ACTIVITY HEATMAP</text>')
     s.append(
         f'<text x="{pad}" y="{ty + sub_h}" style="{sub_style}">'
-        f"Day of Week × Hour of Day · All-time · UTC{TZ_OFFSET:+d}"
+        f"Day × Hour · All-time · UTC{TZ_OFFSET:+d} · 🐜 A* pathfinding"
         f"</text>"
     )
 
-    # Hour labels (every 2 hours)
+    # ── Hour labels ───────────────────────────────────────────
     for h in range(0, 24, 2):
         x = gx + h * STEP + CELL / 2
         y = gy - 4
@@ -212,16 +305,7 @@ def generate_svg(matrix):
             f"{h:02d}</text>"
         )
 
-    # ── Rows — cells with cascade reveal + continuous wave breathing ──
-    anim_total_dur = 2.8          # seconds to reveal entire grid
-    cell_count = 7 * 24
-    per_cell = anim_total_dur / cell_count
-
-    # Wave parameters (continuous after reveal)
-    wave_dur = 5.0                # seconds per full wave cycle
-    max_diag = 23 + 6             # max diagonal index (h + ri)
-    phase_spread = wave_dur * 0.85  # spread phases across this many seconds
-
+    # ── Day labels ────────────────────────────────────────────
     for ri in range(7):
         yc = gy + ri * STEP + CELL / 2 + 3
         s.append(
@@ -229,158 +313,376 @@ def generate_svg(matrix):
             f"{DAYS[ri]}</text>"
         )
 
+    # ══════════════════════════════════════════════════════════
+    #  HEATMAP CELLS — with ant-eating animation
+    # ══════════════════════════════════════════════════════════
+    path_set = set(path)
+    # For cells on the path, compute when the ant arrives
+    path_arrival = {}
+    for idx, (r, c) in enumerate(path):
+        path_arrival[(r, c)] = step_times[idx]
+
+    for ri in range(7):
         for h in range(24):
             x = gx + h * STEP
             y = gy + ri * STEP
             val = matrix[ri][h]
-
             if val == 0:
                 color = HEAT[0]
                 ratio = 0.0
             else:
                 ratio = val / max_val
-                if ratio <= 0.25:
-                    color = HEAT[1]
-                elif ratio <= 0.50:
-                    color = HEAT[2]
-                elif ratio <= 0.75:
-                    color = HEAT[3]
-                else:
-                    color = HEAT[4]
+                if ratio <= 0.25: color = HEAT[1]
+                elif ratio <= 0.50: color = HEAT[2]
+                elif ratio <= 0.75: color = HEAT[3]
+                else: color = HEAT[4]
 
-            # Staggered reveal: column-first scan (top→bottom, left→right)
-            cell_idx = h * 7 + ri
-            delay = round(cell_idx * per_cell, 3)
+            on_path = (ri, h) in path_set
+            arrival = path_arrival.get((ri, h))
 
-            s.append(
-                f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
-                f'rx="3" fill="{color}" opacity="0">'
-            )
+            if on_path and val > 0:
+                # Cell gets "eaten": flash bright then dim to empty color
+                eat_start = round(arrival, 3)
+                eat_flash = round(eat_start + 0.06, 3)
+                eat_done = round(eat_start + 0.12 + 0.36 * ratio, 3)
+                reset_start = round(walk_dur + celebrate_dur, 3)
+                reset_done = round(total_dur - 0.1, 3)
 
-            # ── Phase 1: cascade reveal (plays once) ──
-            # Fade-in from 0 → 1
-            s.append(
-                f'<animate attributeName="opacity" from="0" to="1" '
-                f'dur="0.35s" begin="{delay:.3f}s" fill="freeze"/>'
-            )
-            # Grow from center
-            half = CELL / 2
-            s.append(
-                f'<animate attributeName="x" values="{x + half};{x - 1};{x}" '
-                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
-            )
-            s.append(
-                f'<animate attributeName="y" values="{y + half};{y - 1};{y}" '
-                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
-            )
-            s.append(
-                f'<animate attributeName="width" values="0;{CELL + 2};{CELL}" '
-                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
-            )
-            s.append(
-                f'<animate attributeName="height" values="0;{CELL + 2};{CELL}" '
-                f'dur="0.4s" begin="{delay:.3f}s" fill="freeze"/>'
-            )
+                kt = _kt([0, eat_start, eat_flash, eat_done, reset_start, reset_done, total_dur], total_dur)
 
-            # ── Phase 2: continuous wave breathing (after reveal) ──
-            # All active cells participate; intensity depends on activity level
-            if val > 0:
-                # Diagonal phase offset creates a sweeping wave
-                diag = h + ri
-                phase = round(diag / max_diag * phase_spread, 3)
-                wave_begin = round(anim_total_dur + 0.5 + phase, 3)
-
-                # Higher activity → deeper breathing (more dramatic pulse)
-                if ratio > 0.75:
-                    lo, hi = 0.50, 1.0
-                elif ratio > 0.50:
-                    lo, hi = 0.58, 1.0
-                elif ratio > 0.25:
-                    lo, hi = 0.68, 0.95
-                else:
-                    lo, hi = 0.78, 0.92
+                # Color animation: original → white flash → eaten(dim) → hold → restore
+                eaten_color = HEAT[0]
+                fill_vals = f"{color};{color};#ffffff;{eaten_color};{eaten_color};{color};{color}"
 
                 s.append(
-                    f'<animate attributeName="opacity" '
-                    f'values="{hi};{lo};{hi}" dur="{wave_dur}s" '
-                    f'begin="{wave_begin}s" repeatCount="indefinite"/>'
+                    f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
+                    f'rx="3" fill="{color}">'
+                    f'<animate attributeName="fill" dur="{total_dur}s" '
+                    f'repeatCount="indefinite" keyTimes="{kt}" values="{fill_vals}"/>'
                 )
 
-                # High-activity cells also get a subtle size pulse
-                if ratio > 0.6:
-                    shrink = round(CELL * 0.92)
-                    grow = CELL
-                    ox = x + (CELL - shrink) // 2
-                    size_begin = round(wave_begin + wave_dur * 0.1, 3)
+                # Shake when eating thick walls
+                if ratio > 0.3:
+                    shake_x = f"{x};{x+1};{x-1};{x+1};{x}"
+                    shake_kt = _kt([0, eat_start, eat_start+0.03, eat_start+0.06, eat_start+0.09, total_dur], total_dur)
+                    shake_vals = f"{x};{x+1};{x-1};{x+1};{x};{x}"
                     s.append(
-                        f'<animate attributeName="width" '
-                        f'values="{grow};{shrink};{grow}" dur="{wave_dur}s" '
-                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
-                    )
-                    s.append(
-                        f'<animate attributeName="height" '
-                        f'values="{grow};{shrink};{grow}" dur="{wave_dur}s" '
-                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
-                    )
-                    s.append(
-                        f'<animate attributeName="x" '
-                        f'values="{x};{ox};{x}" dur="{wave_dur}s" '
-                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
-                    )
-                    s.append(
-                        f'<animate attributeName="y" '
-                        f'values="{y};{y + (CELL - shrink) // 2};{y}" '
-                        f'dur="{wave_dur}s" '
-                        f'begin="{size_begin}s" repeatCount="indefinite"/>'
+                        f'<animate attributeName="x" dur="{total_dur}s" '
+                        f'repeatCount="indefinite" keyTimes="{shake_kt}" values="{shake_vals}"/>'
                     )
 
-            s.append("</rect>")
+                s.append("</rect>")
 
-    # ── Scanning light bar (sweeps left → right continuously) ──
-    scan_w = 60  # width of the luminous bar
-    scan_begin = round(anim_total_dur + 0.3, 2)
-    scan_dur = 6.0
+            elif on_path and val == 0:
+                # Empty cell on path: subtle highlight when ant passes
+                highlight_start = round(arrival, 3)
+                highlight_end = round(arrival + 0.2, 3)
+                reset_s = round(total_dur - 0.5, 3)
 
-    # Clip to grid area
+                kt = _kt([0, highlight_start, highlight_end, reset_s, total_dur], total_dur)
+                op_vals = "1;1;0.6;0.6;1"
+
+                s.append(
+                    f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
+                    f'rx="3" fill="{color}" opacity="1">'
+                    f'<animate attributeName="opacity" dur="{total_dur}s" '
+                    f'repeatCount="indefinite" keyTimes="{kt}" values="{op_vals}"/>'
+                    f'</rect>'
+                )
+            else:
+                # Static cell (not on path)
+                s.append(
+                    f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
+                    f'rx="3" fill="{color}"/>'
+                )
+
+    # ══════════════════════════════════════════════════════════
+    #  ANT TRAIL (glowing path left behind)
+    # ══════════════════════════════════════════════════════════
+    for idx in range(len(path)):
+        r, c = path[idx]
+        cx = gx + c * STEP + CELL / 2
+        cy = gy + r * STEP + CELL / 2
+        t_arrive = step_times[idx]
+
+        # Trail dot: appears when ant arrives, fades during celebration
+        t_on = round(t_arrive + 0.05, 3)
+        t_glow = round(t_arrive + 0.15, 3)
+        t_fade_start = round(walk_dur + celebrate_dur * 0.5, 3)
+        t_fade_end = round(total_dur - 0.1, 3)
+
+        kt = _kt([0, t_on, t_glow, t_fade_start, t_fade_end, total_dur], total_dur)
+        op_vs = "0;0.6;0.35;0.35;0;0"
+
+        s.append(
+            f'<circle cx="{cx}" cy="{cy}" r="3" fill="{ACCENT}" opacity="0">'
+            f'<animate attributeName="opacity" dur="{total_dur}s" '
+            f'repeatCount="indefinite" keyTimes="{kt}" values="{op_vs}"/>'
+            f'</circle>'
+        )
+
+    # ══════════════════════════════════════════════════════════
+    #  FOOD TARGET (pulsing marker)
+    # ══════════════════════════════════════════════════════════
+    tr, tc = ant_target
+    tx = gx + tc * STEP + CELL / 2
+    ty_food = gy + tr * STEP + CELL / 2
+
+    # Outer pulse ring
+    t_eat = round(step_times[-1], 3) if step_times else 0
+    t_gone = round(t_eat + 0.3, 3)
+
+    kt_food = _kt([0, t_eat, t_gone, total_dur], total_dur)
     s.append(
-        f'<clipPath id="gridClip">'
-        f'<rect x="{gx}" y="{gy}" width="{grid_w}" height="{grid_h}"/>'
-        f'</clipPath>'
+        f'<circle cx="{tx}" cy="{ty_food}" r="6" fill="none" '
+        f'stroke="{ACCENT}" stroke-width="1.2" opacity="0.7">'
+        f'<animate attributeName="r" values="5;8;5" dur="1.2s" repeatCount="indefinite"/>'
+        f'<animate attributeName="opacity" dur="{total_dur}s" '
+        f'repeatCount="indefinite" keyTimes="{kt_food}" values="0.7;0.7;0;0"/>'
+        f'</circle>'
     )
-    s.append(f'<g clip-path="url(#gridClip)">')
+    # Inner dot
     s.append(
-        f'<rect x="{gx - scan_w}" y="{gy}" '
-        f'width="{scan_w}" height="{grid_h}" '
-        f'fill="url(#scan)" filter="url(#scanGlow)" opacity="0.8">'
+        f'<circle cx="{tx}" cy="{ty_food}" r="2.5" fill="{ACCENT}" opacity="0.9">'
+        f'<animate attributeName="opacity" dur="{total_dur}s" '
+        f'repeatCount="indefinite" keyTimes="{kt_food}" values="0.9;0.9;0;0"/>'
+        f'</circle>'
+    )
+
+    # ══════════════════════════════════════════════════════════
+    #  CELEBRATION BURST (when ant reaches target)
+    # ══════════════════════════════════════════════════════════
+    celeb_start = round(walk_dur, 3)
+    celeb_peak = round(walk_dur + 0.3, 3)
+    celeb_end = round(walk_dur + celebrate_dur, 3)
+
+    kt_celeb = _kt([0, celeb_start, celeb_peak, celeb_end, total_dur], total_dur)
+
+    # Expanding ring burst
+    for ring_i in range(3):
+        delay_offset = ring_i * 0.15
+        r_start = round(celeb_start + delay_offset, 3)
+        r_peak = round(celeb_peak + delay_offset, 3)
+        r_end = round(celeb_end, 3)
+        kt_r = _kt([0, r_start, r_peak, r_end, total_dur], total_dur)
+        max_r = 12 + ring_i * 8
+        s.append(
+            f'<circle cx="{tx}" cy="{ty_food}" r="0" fill="none" '
+            f'stroke="{ACCENT}" stroke-width="1" opacity="0" filter="url(#burst)">'
+            f'<animate attributeName="r" dur="{total_dur}s" '
+            f'repeatCount="indefinite" keyTimes="{kt_r}" '
+            f'values="0;0;{max_r};{max_r + 5};0"/>'
+            f'<animate attributeName="opacity" dur="{total_dur}s" '
+            f'repeatCount="indefinite" keyTimes="{kt_r}" '
+            f'values="0;0;0.7;0;0"/>'
+            f'</circle>'
+        )
+
+    # ══════════════════════════════════════════════════════════
+    #  ANT — procedural body + animated legs + antennae
+    # ══════════════════════════════════════════════════════════
+    # Build the ant as a small group that moves along the path
+
+    # X, Y value strings for the walk
+    ant_x_vals = []
+    ant_y_vals = []
+    # Rotation (face direction of movement)
+    ant_rot_vals = []
+
+    for idx, (r, c) in enumerate(path):
+        cx = gx + c * STEP + CELL / 2
+        cy = gy + r * STEP + CELL / 2
+        ant_x_vals.append(f"{cx:.1f}")
+        ant_y_vals.append(f"{cy:.1f}")
+
+        # Compute facing angle
+        if idx < len(path) - 1:
+            nr, nc = path[idx + 1]
+            dx = nc - c
+            dy = nr - r
+            angle = math.degrees(math.atan2(dy, dx))
+        elif idx > 0:
+            pr, pc = path[idx - 1]
+            dx = c - pc
+            dy = r - pr
+            angle = math.degrees(math.atan2(dy, dx))
+        else:
+            angle = 0
+        ant_rot_vals.append(f"{angle:.0f}")
+
+    # Add celebration hold + reset
+    # Ant stays at target during celebration, then jumps to start
+    sr, sc = path[0]
+    start_cx = gx + sc * STEP + CELL / 2
+    start_cy = gy + sr * STEP + CELL / 2
+
+    end_cx = float(ant_x_vals[-1])
+    end_cy = float(ant_y_vals[-1])
+    end_rot = ant_rot_vals[-1]
+    start_rot = ant_rot_vals[0]
+
+    # Keyframes for the full cycle: walk + celebrate + reset
+    all_times = list(step_times)
+    all_times.append(walk_dur)                          # arrival at target
+    all_times.append(walk_dur + celebrate_dur)           # end celebration
+    all_times.append(total_dur)                          # loop start
+
+    all_x = list(ant_x_vals) + [f"{end_cx:.1f}", f"{start_cx:.1f}", f"{start_cx:.1f}"]
+    all_y = list(ant_y_vals) + [f"{end_cy:.1f}", f"{start_cy:.1f}", f"{start_cy:.1f}"]
+    all_rot = list(ant_rot_vals) + [end_rot, start_rot, start_rot]
+
+    # Ant opacity: walks visible, celebrate flash, reset invisible briefly
+    all_op_times = [0, walk_dur, walk_dur + 0.2, walk_dur + celebrate_dur - 0.3,
+                    walk_dur + celebrate_dur, total_dur]
+    all_op_vals = [1.0, 1.0, 1.0, 1.0, 0.0, 1.0]
+
+    kt_walk = _kt(all_times, total_dur)
+    x_str = ";".join(all_x)
+    y_str = ";".join(all_y)
+    rot_str = ";".join(all_rot)
+
+    kt_op = _kt(all_op_times, total_dur)
+    op_str = ";".join(f"{v}" for v in all_op_vals)
+
+    # Ant body group  — drawn at origin (0,0), translated by animation
+    # Body: 3 segments + 6 legs + 2 antennae + head
+    ant_color = "#cc6633"
+    ant_dark = "#8b4513"
+    ant_leg = "#995522"
+    ant_size = 4.5  # half-body length
+
+    s.append(f'<g opacity="1">')
+    s.append(
+        f'<animate attributeName="opacity" dur="{total_dur}s" '
+        f'repeatCount="indefinite" keyTimes="{kt_op}" values="{op_str}"/>'
+    )
+
+    # We animate via a nested structure:
+    # Outer <g> moves X, inner <g> moves Y, innermost <g> rotates
+    s.append(f'<g>')
+    s.append(
         f'<animateTransform attributeName="transform" type="translate" '
-        f'from="0 0" to="{grid_w + scan_w * 2} 0" '
-        f'dur="{scan_dur}s" begin="{scan_begin}s" repeatCount="indefinite"/>'
-        f'</rect>'
+        f'dur="{total_dur}s" repeatCount="indefinite" '
+        f'keyTimes="{kt_walk}" '
+        f'values="{";".join(f"{x} 0" for x in all_x)}"/>'
     )
-    s.append("</g>")
 
-    # Legend (right-aligned)
+    s.append(f'<g>')
+    s.append(
+        f'<animateTransform attributeName="transform" type="translate" '
+        f'dur="{total_dur}s" repeatCount="indefinite" '
+        f'keyTimes="{kt_walk}" '
+        f'values="{";".join(f"0 {y}" for y in all_y)}"/>'
+    )
+
+    # Rotation group
+    s.append(f'<g>')
+    s.append(
+        f'<animateTransform attributeName="transform" type="rotate" '
+        f'dur="{total_dur}s" repeatCount="indefinite" '
+        f'keyTimes="{kt_walk}" '
+        f'values="{";".join(f"{r} 0 0" for r in all_rot)}"/>'
+    )
+
+    # ── Ant body drawn at (0,0) facing right ──
+    # Abdomen (rear)
+    s.append(f'<ellipse cx="-{ant_size}" cy="0" rx="3" ry="2.2" fill="{ant_color}"/>')
+    # Thorax (middle)
+    s.append(f'<ellipse cx="0" cy="0" rx="2.5" ry="2" fill="{ant_dark}"/>')
+    # Head
+    s.append(
+        f'<ellipse cx="{ant_size - 0.5}" cy="0" rx="2" ry="1.8" fill="{ant_color}" '
+        f'filter="url(#glo)"/>'
+    )
+    # Eyes
+    s.append(f'<circle cx="{ant_size + 0.8}" cy="-0.8" r="0.5" fill="#ffffff"/>')
+    s.append(f'<circle cx="{ant_size + 0.8}" cy="0.8" r="0.5" fill="#ffffff"/>')
+
+    # Antennae (curved lines)
+    s.append(
+        f'<line x1="{ant_size + 1}" y1="-1" x2="{ant_size + 4}" y2="-3.5" '
+        f'stroke="{ant_leg}" stroke-width="0.5" stroke-linecap="round">'
+        f'<animate attributeName="y2" values="-3.5;-4.2;-3.5" dur="0.4s" repeatCount="indefinite"/>'
+        f'</line>'
+    )
+    s.append(
+        f'<line x1="{ant_size + 1}" y1="1" x2="{ant_size + 4}" y2="3.5" '
+        f'stroke="{ant_leg}" stroke-width="0.5" stroke-linecap="round">'
+        f'<animate attributeName="y2" values="3.5;4.2;3.5" dur="0.4s" '
+        f'begin="0.1s" repeatCount="indefinite"/>'
+        f'</line>'
+    )
+
+    # Legs (3 pairs, animated walking)
+    leg_positions = [-3.5, 0, 3.0]  # x positions along body
+    for li, lx in enumerate(leg_positions):
+        phase = li * 0.12
+        # Top leg
+        s.append(
+            f'<line x1="{lx}" y1="-2" x2="{lx - 0.5}" y2="-5" '
+            f'stroke="{ant_leg}" stroke-width="0.6" stroke-linecap="round">'
+            f'<animate attributeName="x2" values="{lx - 1};{lx + 1};{lx - 1}" '
+            f'dur="0.3s" begin="{phase}s" repeatCount="indefinite"/>'
+            f'<animate attributeName="y2" values="-5;-4.5;-5" '
+            f'dur="0.3s" begin="{phase}s" repeatCount="indefinite"/>'
+            f'</line>'
+        )
+        # Bottom leg
+        s.append(
+            f'<line x1="{lx}" y1="2" x2="{lx + 0.5}" y2="5" '
+            f'stroke="{ant_leg}" stroke-width="0.6" stroke-linecap="round">'
+            f'<animate attributeName="x2" values="{lx + 1};{lx - 1};{lx + 1}" '
+            f'dur="0.3s" begin="{phase}s" repeatCount="indefinite"/>'
+            f'<animate attributeName="y2" values="5;4.5;5" '
+            f'dur="0.3s" begin="{phase}s" repeatCount="indefinite"/>'
+            f'</line>'
+        )
+
+    s.append("</g>")  # rotation
+    s.append("</g>")  # Y translate
+    s.append("</g>")  # X translate
+    s.append("</g>")  # opacity
+
+    # ── Legend ─────────────────────────────────────────────────
     ly = gy + grid_h + legend_gap + 10
     leg_cell = 10
-    leg_gap = 3
-    leg_w = len(HEAT) * (leg_cell + leg_gap)
-    lx_start = gx + grid_w - leg_w - 40
+    leg_gap_px = 3
+    leg_w_px = len(HEAT) * (leg_cell + leg_gap_px)
+    lx_start = gx + grid_w - leg_w_px - 40
 
     s.append(
         f'<text x="{lx_start - 4}" y="{ly + 3}" text-anchor="end" style="{leg_style}">'
         f"Less</text>"
     )
     for i, c in enumerate(HEAT):
-        rx = lx_start + i * (leg_cell + leg_gap)
+        rx = lx_start + i * (leg_cell + leg_gap_px)
         s.append(
             f'<rect x="{rx}" y="{ly - 4}" width="{leg_cell}" height="{leg_cell}" '
             f'rx="2" fill="{c}" stroke="{BORDER}" stroke-width=".5"/>'
         )
-    last_rx = lx_start + len(HEAT) * (leg_cell + leg_gap)
+    last_rx = lx_start + len(HEAT) * (leg_cell + leg_gap_px)
     s.append(f'<text x="{last_rx + 4}" y="{ly + 3}" style="{leg_style}">More</text>')
+
+    # Ant icon + label in legend
+    ant_lx = gx + 2
+    s.append(
+        f'<text x="{ant_lx}" y="{ly + 3}" style="{leg_style}">'
+        f'🐜 A* path · walls cost more</text>'
+    )
 
     s.append("</svg>")
     return "\n".join(s)
+
+
+def _kt(times, total):
+    """Convert list of absolute seconds → SMIL keyTimes string 0..1."""
+    kt = [max(0.0, min(1.0, round(t / total, 6))) for t in times]
+    for i in range(1, len(kt)):
+        if kt[i] <= kt[i - 1]:
+            kt[i] = round(kt[i - 1] + 0.00001, 6)
+    kt[0] = 0.0
+    kt[-1] = 1.0
+    return ";".join(f"{k:.6f}" for k in kt)
 
 
 # ── Main ───────────────────────────────────────────────────────────

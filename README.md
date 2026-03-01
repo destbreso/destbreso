@@ -183,8 +183,8 @@ I'm a **Mathematician turned CTO** — I started in pattern recognition research
 
 <br/>
 
-<!-- ACTIVITY HEATMAP — Day of Week × Hour of Day -->
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/activity-heatmap.svg?v=3" width="100%" alt="Activity heatmap (day × hour)" />
+<!-- ACTIVITY HEATMAP — Ant A* pathfinding through the contribution grid -->
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/activity-heatmap.svg?v=4" width="100%" alt="Activity heatmap with ant pathfinding" />
 
 <br/>
 
