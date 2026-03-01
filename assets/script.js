@@ -13,8 +13,10 @@
   let ghRepos = [];
   let ghEvents = [];
   let commits = [];
+  let allEventDates = []; // Date[] from ALL event types (max data)
   let contributions = []; // {date,count,level}[] from contributions API
   let contribTotal = 0;
+  let repoLangsMap = {}; // repo → {lang: bytes}
 
   document.addEventListener("DOMContentLoaded", () => {
     if (window.lucide) lucide.createIcons();
@@ -250,6 +252,10 @@
 
       ghEvents = await fetchAllEvents();
       commits = extractCommits(ghEvents.filter((e) => e.type === "PushEvent"));
+      allEventDates = ghEvents.map((e) => new Date(e.created_at));
+
+      // Fetch per-repo language breakdowns for top repos (real bytes)
+      repoLangsMap = await fetchRepoLanguages(ghRepos.slice(0, 20));
 
       renderContribGraph();
       renderStats();
@@ -289,6 +295,25 @@
       }
     }
     return all;
+  }
+
+  async function fetchRepoLanguages(repos) {
+    const map = {};
+    // Batch fetch in parallel (max 20 repos)
+    const promises = repos.map((r) =>
+      fetch(
+        "https://api.github.com/repos/" + GH_USER + "/" + r.name + "/languages",
+      )
+        .then((res) => (res.ok ? res.json() : {}))
+        .then((langs) => {
+          map[r.name] = langs;
+        })
+        .catch(() => {
+          map[r.name] = {};
+        }),
+    );
+    await Promise.all(promises);
+    return map;
   }
 
   function extractCommits(pushEvents) {
@@ -785,7 +810,7 @@
   }
 
   // ════════════════════════════════════════════════════════════
-  // 7. ACTIVITY HEATMAP
+  // 7. ACTIVITY HEATMAP (uses ALL events for maximum data)
   // ════════════════════════════════════════════════════════════
   function renderHeatmap() {
     const grid = document.getElementById("hm-grid");
@@ -797,7 +822,8 @@
 
     const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
-    commits.forEach((c) => matrix[c.getDay()][c.getHours()]++);
+    // Use ALL event timestamps, not just commits
+    allEventDates.forEach((d) => matrix[d.getDay()][d.getHours()]++);
     const max = Math.max(...matrix.flat(), 1);
 
     if (yLab)
@@ -851,14 +877,25 @@
     if (!canvas || !ghRepos.length) return;
     if (loading) loading.classList.add("hidden");
 
+    // Aggregate from per-repo language API data (real bytes per language)
     const counts = {};
-    ghRepos.forEach((r) => {
-      if (r.language)
-        counts[r.language] = (counts[r.language] || 0) + (r.size || 1);
-    });
+    const hasLangApi = Object.keys(repoLangsMap).length > 0;
+    if (hasLangApi) {
+      Object.values(repoLangsMap).forEach((langs) => {
+        Object.entries(langs).forEach(([lang, bytes]) => {
+          counts[lang] = (counts[lang] || 0) + bytes;
+        });
+      });
+    } else {
+      // Fallback: primary language per repo
+      ghRepos.forEach((r) => {
+        if (r.language)
+          counts[r.language] = (counts[r.language] || 0) + (r.size || 1);
+      });
+    }
     const sorted = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 7);
+      .slice(0, 8);
     const total = sorted.reduce((s, x) => s + x[1], 0);
 
     const langColors = {
@@ -950,7 +987,7 @@
   // ════════════════════════════════════════════════════════════
   function renderRadar() {
     const canvas = document.getElementById("radar-chart");
-    if (!canvas || !commits.length) return;
+    if (!canvas || !allEventDates.length) return;
 
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
@@ -973,8 +1010,9 @@
       "18–21",
       "21–24",
     ];
-    commits.forEach((c) => {
-      slots[Math.floor(c.getHours() / 3)]++;
+    // Use ALL event timestamps for maximum data
+    allEventDates.forEach((d) => {
+      slots[Math.floor(d.getHours() / 3)]++;
     });
 
     const n = 8;
@@ -1571,14 +1609,14 @@
     const grid = document.getElementById("insights-grid");
     if (!grid) return;
 
-    // Use contributions-based hourly data if events exist, else skip time insights
-    const hasTime = commits.length > 0;
+    // Use ALL event timestamps for time-based insights (max data)
+    const hasTime = allEventDates.length > 0;
 
-    // Peak hour (from events — only source with hourly data)
+    // Peak hour (from ALL events)
     let peakStr = "—";
     if (hasTime) {
       const hours = Array(24).fill(0);
-      commits.forEach((c) => hours[c.getHours()]++);
+      allEventDates.forEach((d) => hours[d.getHours()]++);
       const peakH = hours.indexOf(Math.max(...hours));
       peakStr =
         peakH === 0
@@ -1590,7 +1628,7 @@
               : peakH - 12 + " PM";
     }
 
-    // Peak day from contributions (which day of week has most contributions)
+    // Peak day — prefer contributions (full year), fallback to events
     const dayNames = [
       "Sunday",
       "Monday",
@@ -1611,18 +1649,18 @@
       peakDayName = dayNames[peakD];
     } else if (hasTime) {
       const days = Array(7).fill(0);
-      commits.forEach((c) => days[c.getDay()]++);
+      allEventDates.forEach((d) => days[d.getDay()]++);
       peakDayName = dayNames[days.indexOf(Math.max(...days))];
     }
 
-    // Night owl (10pm–6am) from events
+    // Night owl (10pm–6am) from ALL events
     let nightPct = 0;
     if (hasTime) {
-      const night = commits.filter((c) => {
-        const h = c.getHours();
+      const night = allEventDates.filter((d) => {
+        const h = d.getHours();
         return h >= 22 || h < 6;
       });
-      nightPct = Math.round((night.length / commits.length) * 100);
+      nightPct = Math.round((night.length / allEventDates.length) * 100);
     }
 
     // Most active month from contributions
@@ -1654,12 +1692,22 @@
       }
     }
 
-    // Top language
+    // Top language from per-repo language data
     const langCounts = {};
-    ghRepos.forEach((r) => {
-      if (r.language)
-        langCounts[r.language] = (langCounts[r.language] || 0) + (r.size || 1);
-    });
+    const hasLangApi = Object.keys(repoLangsMap).length > 0;
+    if (hasLangApi) {
+      Object.values(repoLangsMap).forEach((langs) => {
+        Object.entries(langs).forEach(([lang, bytes]) => {
+          langCounts[lang] = (langCounts[lang] || 0) + bytes;
+        });
+      });
+    } else {
+      ghRepos.forEach((r) => {
+        if (r.language)
+          langCounts[r.language] =
+            (langCounts[r.language] || 0) + (r.size || 1);
+      });
+    }
     const topLang =
       Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
@@ -1669,6 +1717,9 @@
       const activeDays = contributions.filter((c) => c.count > 0).length;
       activeDaysPct = Math.round((activeDays / contributions.length) * 100);
     }
+
+    // Total events tracked
+    const totalEvents = allEventDates.length;
 
     const items = [
       { icon: "clock", value: peakStr, label: "Peak Coding Hour" },
