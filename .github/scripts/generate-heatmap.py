@@ -203,51 +203,105 @@ def generate_svg(matrix):
     if max_val == 0:
         max_val = 1
 
-    # ── Pick ant start, target, and compute path ──────────────
-    rng = random.Random(7)
+    # ═══════════════════════════════════════════════════════════
+    #  MULTI-PATH GENERATION — 10 diverse A* paths
+    # ═══════════════════════════════════════════════════════════
+    NUM_PATHS = 10
+    MIN_MANHATTAN = 12          # targets must be at least this far
+    CELEBRATE_DUR = 1.5         # burst at each target
+    TELEPORT_DUR = 0.6          # invisible gap between paths
 
-    # Classify cells by weight
-    empties = []
-    lights = []
-    heavies = []
-    for r in range(7):
-        for c in range(24):
+    rng = random.Random(42)
+
+    all_cells = [(r, c) for r in range(7) for c in range(24)]
+    empties = [(r, c) for r, c in all_cells if matrix[r][c] == 0]
+    lights  = [(r, c) for r, c in all_cells if 0 < matrix[r][c] / max_val <= 0.25]
+    mids    = [(r, c) for r, c in all_cells if 0.25 < matrix[r][c] / max_val <= 0.5]
+    heavies = [(r, c) for r, c in all_cells if matrix[r][c] / max_val > 0.5]
+
+    segments = []           # one dict per path segment
+    used_pairs = set()
+    global_t = 0.0
+
+    for pi in range(NUM_PATHS):
+        # ── Start: prefer empty / light cells ──
+        start_pool = list(empties + lights) if (empties + lights) else list(all_cells)
+        rng.shuffle(start_pool)
+
+        # ── Target: prefer heavy / mid cells, far from start ──
+        target_pool = list(heavies + mids) if (heavies + mids) else list(lights + empties)
+        if not target_pool:
+            target_pool = list(all_cells)
+
+        best_start, best_target, best_dist = None, None, -1
+
+        for s_cand in start_pool[:30]:
+            for t_cand in target_pool:
+                d = abs(s_cand[0] - t_cand[0]) + abs(s_cand[1] - t_cand[1])
+                if d >= MIN_MANHATTAN and (s_cand, t_cand) not in used_pairs and d > best_dist:
+                    best_start, best_target, best_dist = s_cand, t_cand, d
+
+        if best_start is None:
+            # Relax min-distance — just pick furthest unused pair
+            for s_cand in start_pool[:15]:
+                sorted_t = sorted(
+                    target_pool,
+                    key=lambda t: -(abs(t[0] - s_cand[0]) + abs(t[1] - s_cand[1]))
+                )
+                for t_cand in sorted_t[:5]:
+                    if (s_cand, t_cand) not in used_pairs:
+                        best_start, best_target = s_cand, t_cand
+                        best_dist = abs(best_start[0] - best_target[0]) + abs(best_start[1] - best_target[1])
+                        break
+                if best_start:
+                    break
+
+        if best_start is None:
+            best_start = start_pool[0]
+            best_target = max(target_pool,
+                              key=lambda t: abs(t[0] - best_start[0]) + abs(t[1] - best_start[1]))
+
+        used_pairs.add((best_start, best_target))
+
+        seg_path = astar(matrix, best_start, best_target, max_val)
+
+        # ── Step timing — 20× slower than original ──
+        step_times = []
+        t = global_t
+        for r, c in seg_path:
             ratio = matrix[r][c] / max_val
-            if ratio == 0:
-                empties.append((r, c))
-            elif ratio <= 0.25:
-                lights.append((r, c))
-            elif ratio > 0.5:
-                heavies.append((r, c))
+            dur = 2.4 + 9.6 * ratio       # original: 0.12 + 0.48*ratio
+            step_times.append(round(t, 4))
+            t += dur
+        walk_end = round(t, 4)
 
-    # Start: prefer empty/light cells on the left side
-    start_pool = [p for p in (empties + lights) if p[1] < 12]
-    if not start_pool:
-        start_pool = empties + lights
-    if not start_pool:
-        start_pool = [(0, 0)]
-    ant_start = rng.choice(start_pool)
+        segments.append({
+            "start":      best_start,
+            "target":     best_target,
+            "path":       seg_path,
+            "step_times": step_times,
+            "walk_start": round(global_t, 4),
+            "walk_end":   walk_end,
+            "celeb_start": walk_end,
+            "celeb_end":  round(walk_end + CELEBRATE_DUR, 4),
+        })
 
-    # Target: prefer a heavy cell far from start
-    target_pool = heavies if heavies else lights if lights else [(6, 23)]
-    target_pool.sort(key=lambda p: -(abs(p[0]-ant_start[0]) + abs(p[1]-ant_start[1])))
-    ant_target = target_pool[0] if target_pool else (6, 23)
+        global_t = round(walk_end + CELEBRATE_DUR + TELEPORT_DUR, 4)
 
-    path = astar(matrix, ant_start, ant_target, max_val)
+    total_dur = round(global_t, 3)
 
-    # ── Timing ────────────────────────────────────────────────
-    # Each step: base 0.12s + wall thickness bonus (up to 0.48s for max walls)
-    step_times = []
-    t = 0.0
-    for r, c in path:
-        ratio = matrix[r][c] / max_val
-        dur = 0.12 + 0.48 * ratio  # eating through thick walls is slow
-        step_times.append(t)
-        t += dur
-    walk_dur = t
-    celebrate_dur = 1.8       # celebration at target
-    fade_dur = 1.2            # trail fades out + reset
-    total_dur = walk_dur + celebrate_dur + fade_dur
+    # ── Cell eat-timing: first arrival across ALL paths ───────
+    cell_first_eat = {}      # (r,c) → earliest arrival time
+    for seg in segments:
+        for idx, (r, c) in enumerate(seg["path"]):
+            t_arr = seg["step_times"][idx]
+            if (r, c) not in cell_first_eat or t_arr < cell_first_eat[(r, c)]:
+                cell_first_eat[(r, c)] = t_arr
+
+    path_cells = set()
+    for seg in segments:
+        for rc in seg["path"]:
+            path_cells.add(rc)
 
     # ── Inline styles ─────────────────────────────────────────
     title_style = f"font-family:monospace;font-size:11px;font-weight:bold;fill:{ACCENT};letter-spacing:2px"
@@ -266,22 +320,18 @@ def generate_svg(matrix):
 
     # ── Defs ──────────────────────────────────────────────────
     s.append("<defs>")
-
-    # Glow filter for ant head / target
     s.append(
         '<filter id="glo" x="-60%" y="-60%" width="220%" height="220%">'
         '<feGaussianBlur stdDeviation="2" result="b"/>'
         '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
         '</filter>'
     )
-    # Celebration burst filter
     s.append(
         '<filter id="burst" x="-100%" y="-100%" width="300%" height="300%">'
         '<feGaussianBlur stdDeviation="4" result="b"/>'
         '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>'
         '</filter>'
     )
-
     s.append("</defs>")
 
     # ── Background ────────────────────────────────────────────
@@ -314,13 +364,10 @@ def generate_svg(matrix):
         )
 
     # ══════════════════════════════════════════════════════════
-    #  HEATMAP CELLS — with ant-eating animation
+    #  HEATMAP CELLS — eaten on FIRST visit across all paths
     # ══════════════════════════════════════════════════════════
-    path_set = set(path)
-    # For cells on the path, compute when the ant arrives
-    path_arrival = {}
-    for idx, (r, c) in enumerate(path):
-        path_arrival[(r, c)] = step_times[idx]
+    restore_start = round(total_dur - 3.0, 3)
+    restore_end   = round(total_dur - 1.0, 3)
 
     for ri in range(7):
         for h in range(24):
@@ -332,224 +379,248 @@ def generate_svg(matrix):
                 ratio = 0.0
             else:
                 ratio = val / max_val
-                if ratio <= 0.25: color = HEAT[1]
+                if ratio <= 0.25:   color = HEAT[1]
                 elif ratio <= 0.50: color = HEAT[2]
                 elif ratio <= 0.75: color = HEAT[3]
-                else: color = HEAT[4]
+                else:               color = HEAT[4]
 
-            on_path = (ri, h) in path_set
-            arrival = path_arrival.get((ri, h))
+            on_path = (ri, h) in path_cells
+            arrival = cell_first_eat.get((ri, h))
 
-            if on_path and val > 0:
-                # Cell gets "eaten": flash bright then dim to empty color
+            if on_path and val > 0 and arrival is not None:
                 eat_start = round(arrival, 3)
-                eat_flash = round(eat_start + 0.06, 3)
-                eat_done = round(eat_start + 0.12 + 0.36 * ratio, 3)
-                reset_start = round(walk_dur + celebrate_dur, 3)
-                reset_done = round(total_dur - 0.1, 3)
+                eat_flash = round(eat_start + 0.08, 3)
+                eat_done  = round(eat_start + 0.15 + 0.5 * ratio, 3)
 
-                kt = _kt([0, eat_start, eat_flash, eat_done, reset_start, reset_done, total_dur], total_dur)
-
-                # Color animation: original → white flash → eaten(dim) → hold → restore
+                kt = _kt(
+                    [0, eat_start, eat_flash, eat_done,
+                     restore_start, restore_end, total_dur],
+                    total_dur,
+                )
                 eaten_color = HEAT[0]
-                fill_vals = f"{color};{color};#ffffff;{eaten_color};{eaten_color};{color};{color}"
-
+                fill_vals = (
+                    f"{color};{color};#ffffff;{eaten_color};"
+                    f"{eaten_color};{color};{color}"
+                )
                 s.append(
                     f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
                     f'rx="3" fill="{color}">'
                     f'<animate attributeName="fill" dur="{total_dur}s" '
                     f'repeatCount="indefinite" keyTimes="{kt}" values="{fill_vals}"/>'
                 )
-
-                # Shake when eating thick walls
                 if ratio > 0.3:
-                    shake_x = f"{x};{x+1};{x-1};{x+1};{x}"
-                    shake_kt = _kt([0, eat_start, eat_start+0.03, eat_start+0.06, eat_start+0.09, total_dur], total_dur)
-                    shake_vals = f"{x};{x+1};{x-1};{x+1};{x};{x}"
+                    shake_kt = _kt(
+                        [0, eat_start, eat_start + 0.04,
+                         eat_start + 0.08, eat_start + 0.12, total_dur],
+                        total_dur,
+                    )
                     s.append(
                         f'<animate attributeName="x" dur="{total_dur}s" '
-                        f'repeatCount="indefinite" keyTimes="{shake_kt}" values="{shake_vals}"/>'
+                        f'repeatCount="indefinite" keyTimes="{shake_kt}" '
+                        f'values="{x};{x+1};{x-1};{x+1};{x};{x}"/>'
                     )
-
                 s.append("</rect>")
 
-            elif on_path and val == 0:
-                # Empty cell on path: subtle highlight when ant passes
-                highlight_start = round(arrival, 3)
-                highlight_end = round(arrival + 0.2, 3)
-                reset_s = round(total_dur - 0.5, 3)
-
-                kt = _kt([0, highlight_start, highlight_end, reset_s, total_dur], total_dur)
-                op_vals = "1;1;0.6;0.6;1"
-
+            elif on_path and val == 0 and arrival is not None:
+                hl_start = round(arrival, 3)
+                hl_end   = round(arrival + 0.3, 3)
+                kt = _kt(
+                    [0, hl_start, hl_end, restore_start, total_dur],
+                    total_dur,
+                )
                 s.append(
                     f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
                     f'rx="3" fill="{color}" opacity="1">'
                     f'<animate attributeName="opacity" dur="{total_dur}s" '
-                    f'repeatCount="indefinite" keyTimes="{kt}" values="{op_vals}"/>'
+                    f'repeatCount="indefinite" keyTimes="{kt}" '
+                    f'values="1;1;0.6;0.6;1"/>'
                     f'</rect>'
                 )
             else:
-                # Static cell (not on path)
                 s.append(
                     f'<rect x="{x}" y="{y}" width="{CELL}" height="{CELL}" '
                     f'rx="3" fill="{color}"/>'
                 )
 
     # ══════════════════════════════════════════════════════════
-    #  ANT TRAIL (glowing path left behind)
+    #  ANT TRAILS — per-segment, appear then fade
     # ══════════════════════════════════════════════════════════
-    for idx in range(len(path)):
-        r, c = path[idx]
-        cx = gx + c * STEP + CELL / 2
-        cy = gy + r * STEP + CELL / 2
-        t_arrive = step_times[idx]
+    for seg in segments:
+        for idx in range(len(seg["path"])):
+            r, c = seg["path"][idx]
+            cx = gx + c * STEP + CELL / 2
+            cy = gy + r * STEP + CELL / 2
+            t_arrive = seg["step_times"][idx]
 
-        # Trail dot: appears when ant arrives, fades during celebration
-        t_on = round(t_arrive + 0.05, 3)
-        t_glow = round(t_arrive + 0.15, 3)
-        t_fade_start = round(walk_dur + celebrate_dur * 0.5, 3)
-        t_fade_end = round(total_dur - 0.1, 3)
+            t_on   = round(t_arrive + 0.05, 3)
+            t_glow = round(t_arrive + 0.2, 3)
+            t_fade_start = round(seg["celeb_end"] - 0.3, 3)
+            t_fade_end   = round(seg["celeb_end"] + TELEPORT_DUR * 0.5, 3)
 
-        kt = _kt([0, t_on, t_glow, t_fade_start, t_fade_end, total_dur], total_dur)
-        op_vs = "0;0.6;0.35;0.35;0;0"
+            # Ensure monotonic
+            if t_fade_start <= t_glow:
+                t_fade_start = round(t_glow + 0.1, 3)
+            if t_fade_end <= t_fade_start:
+                t_fade_end = round(t_fade_start + 0.1, 3)
 
+            kt = _kt(
+                [0, t_on, t_glow, t_fade_start, t_fade_end, total_dur],
+                total_dur,
+            )
+            s.append(
+                f'<circle cx="{cx}" cy="{cy}" r="3" fill="{ACCENT}" opacity="0">'
+                f'<animate attributeName="opacity" dur="{total_dur}s" '
+                f'repeatCount="indefinite" keyTimes="{kt}" '
+                f'values="0;0.6;0.35;0.35;0;0"/>'
+                f'</circle>'
+            )
+
+    # ══════════════════════════════════════════════════════════
+    #  FOOD TARGETS — pulsing marker per segment
+    # ══════════════════════════════════════════════════════════
+    for seg in segments:
+        tr, tc = seg["target"]
+        tx = gx + tc * STEP + CELL / 2
+        ty_food = gy + tr * STEP + CELL / 2
+
+        t_visible = round(seg["walk_start"], 3)
+        t_eat  = round(seg["step_times"][-1], 3) if seg["step_times"] else t_visible
+        t_gone = round(t_eat + 0.3, 3)
+
+        kt_food = _kt([0, t_visible, t_eat, t_gone, total_dur], total_dur)
+
+        # Outer pulse ring
         s.append(
-            f'<circle cx="{cx}" cy="{cy}" r="3" fill="{ACCENT}" opacity="0">'
+            f'<circle cx="{tx}" cy="{ty_food}" r="6" fill="none" '
+            f'stroke="{ACCENT}" stroke-width="1.2" opacity="0">'
+            f'<animate attributeName="r" values="5;8;5" dur="1.2s" repeatCount="indefinite"/>'
             f'<animate attributeName="opacity" dur="{total_dur}s" '
-            f'repeatCount="indefinite" keyTimes="{kt}" values="{op_vs}"/>'
+            f'repeatCount="indefinite" keyTimes="{kt_food}" values="0;0.7;0.7;0;0"/>'
+            f'</circle>'
+        )
+        # Inner dot
+        s.append(
+            f'<circle cx="{tx}" cy="{ty_food}" r="2.5" fill="{ACCENT}" opacity="0">'
+            f'<animate attributeName="opacity" dur="{total_dur}s" '
+            f'repeatCount="indefinite" keyTimes="{kt_food}" values="0;0.9;0.9;0;0"/>'
             f'</circle>'
         )
 
     # ══════════════════════════════════════════════════════════
-    #  FOOD TARGET (pulsing marker)
+    #  CELEBRATIONS — burst rings at each target
     # ══════════════════════════════════════════════════════════
-    tr, tc = ant_target
-    tx = gx + tc * STEP + CELL / 2
-    ty_food = gy + tr * STEP + CELL / 2
+    for seg in segments:
+        tr, tc = seg["target"]
+        tx = gx + tc * STEP + CELL / 2
+        ty_food = gy + tr * STEP + CELL / 2
+        cs = round(seg["celeb_start"], 3)
+        cp = round(cs + 0.3, 3)
+        ce = round(seg["celeb_end"], 3)
 
-    # Outer pulse ring
-    t_eat = round(step_times[-1], 3) if step_times else 0
-    t_gone = round(t_eat + 0.3, 3)
+        for ring_i in range(3):
+            delay = ring_i * 0.15
+            rs = round(cs + delay, 3)
+            rp = round(cp + delay, 3)
+            re = ce
+            kt_r = _kt([0, rs, rp, re, total_dur], total_dur)
+            max_r = 12 + ring_i * 8
 
-    kt_food = _kt([0, t_eat, t_gone, total_dur], total_dur)
-    s.append(
-        f'<circle cx="{tx}" cy="{ty_food}" r="6" fill="none" '
-        f'stroke="{ACCENT}" stroke-width="1.2" opacity="0.7">'
-        f'<animate attributeName="r" values="5;8;5" dur="1.2s" repeatCount="indefinite"/>'
-        f'<animate attributeName="opacity" dur="{total_dur}s" '
-        f'repeatCount="indefinite" keyTimes="{kt_food}" values="0.7;0.7;0;0"/>'
-        f'</circle>'
-    )
-    # Inner dot
-    s.append(
-        f'<circle cx="{tx}" cy="{ty_food}" r="2.5" fill="{ACCENT}" opacity="0.9">'
-        f'<animate attributeName="opacity" dur="{total_dur}s" '
-        f'repeatCount="indefinite" keyTimes="{kt_food}" values="0.9;0.9;0;0"/>'
-        f'</circle>'
-    )
-
-    # ══════════════════════════════════════════════════════════
-    #  CELEBRATION BURST (when ant reaches target)
-    # ══════════════════════════════════════════════════════════
-    celeb_start = round(walk_dur, 3)
-    celeb_peak = round(walk_dur + 0.3, 3)
-    celeb_end = round(walk_dur + celebrate_dur, 3)
-
-    kt_celeb = _kt([0, celeb_start, celeb_peak, celeb_end, total_dur], total_dur)
-
-    # Expanding ring burst
-    for ring_i in range(3):
-        delay_offset = ring_i * 0.15
-        r_start = round(celeb_start + delay_offset, 3)
-        r_peak = round(celeb_peak + delay_offset, 3)
-        r_end = round(celeb_end, 3)
-        kt_r = _kt([0, r_start, r_peak, r_end, total_dur], total_dur)
-        max_r = 12 + ring_i * 8
-        s.append(
-            f'<circle cx="{tx}" cy="{ty_food}" r="0" fill="none" '
-            f'stroke="{ACCENT}" stroke-width="1" opacity="0" filter="url(#burst)">'
-            f'<animate attributeName="r" dur="{total_dur}s" '
-            f'repeatCount="indefinite" keyTimes="{kt_r}" '
-            f'values="0;0;{max_r};{max_r + 5};0"/>'
-            f'<animate attributeName="opacity" dur="{total_dur}s" '
-            f'repeatCount="indefinite" keyTimes="{kt_r}" '
-            f'values="0;0;0.7;0;0"/>'
-            f'</circle>'
-        )
+            s.append(
+                f'<circle cx="{tx}" cy="{ty_food}" r="0" fill="none" '
+                f'stroke="{ACCENT}" stroke-width="1" opacity="0" filter="url(#burst)">'
+                f'<animate attributeName="r" dur="{total_dur}s" '
+                f'repeatCount="indefinite" keyTimes="{kt_r}" '
+                f'values="0;0;{max_r};{max_r + 5};0"/>'
+                f'<animate attributeName="opacity" dur="{total_dur}s" '
+                f'repeatCount="indefinite" keyTimes="{kt_r}" '
+                f'values="0;0;0.7;0;0"/>'
+                f'</circle>'
+            )
 
     # ══════════════════════════════════════════════════════════
-    #  ANT — procedural body + animated legs + antennae
+    #  ANT — procedural body chained across all path segments
     # ══════════════════════════════════════════════════════════
-    # Build the ant as a small group that moves along the path
 
-    # X, Y value strings for the walk
-    ant_x_vals = []
-    ant_y_vals = []
-    # Rotation (face direction of movement)
-    ant_rot_vals = []
+    # ── Position keyframes (walk + hold-at-target for each seg) ──
+    pos_times = []
+    pos_x = []
+    pos_y = []
+    pos_rot = []
 
-    for idx, (r, c) in enumerate(path):
-        cx = gx + c * STEP + CELL / 2
-        cy = gy + r * STEP + CELL / 2
-        ant_x_vals.append(f"{cx:.1f}")
-        ant_y_vals.append(f"{cy:.1f}")
+    for si, seg in enumerate(segments):
+        seg_path = seg["path"]
+        for idx, (r, c) in enumerate(seg_path):
+            cx = gx + c * STEP + CELL / 2
+            cy = gy + r * STEP + CELL / 2
+            pos_times.append(seg["step_times"][idx])
+            pos_x.append(cx)
+            pos_y.append(cy)
 
-        # Compute facing angle
-        if idx < len(path) - 1:
-            nr, nc = path[idx + 1]
-            dx = nc - c
-            dy = nr - r
-            angle = math.degrees(math.atan2(dy, dx))
-        elif idx > 0:
-            pr, pc = path[idx - 1]
-            dx = c - pc
-            dy = r - pr
-            angle = math.degrees(math.atan2(dy, dx))
+            if idx < len(seg_path) - 1:
+                nr, nc = seg_path[idx + 1]
+                angle = math.degrees(math.atan2(nr - r, nc - c))
+            elif idx > 0:
+                pr, pc = seg_path[idx - 1]
+                angle = math.degrees(math.atan2(r - pr, c - pc))
+            else:
+                angle = 0.0
+            pos_rot.append(angle)
+
+        # Hold at target through celebration
+        tr, tc = seg["target"]
+        end_cx = gx + tc * STEP + CELL / 2
+        end_cy = gy + tr * STEP + CELL / 2
+        pos_times.append(seg["celeb_end"])
+        pos_x.append(end_cx)
+        pos_y.append(end_cy)
+        pos_rot.append(pos_rot[-1])
+
+    # Close cycle — back to the very first start for seamless loop
+    first_start = segments[0]["start"]
+    first_cx = gx + first_start[1] * STEP + CELL / 2
+    first_cy = gy + first_start[0] * STEP + CELL / 2
+    pos_times.append(total_dur)
+    pos_x.append(first_cx)
+    pos_y.append(first_cy)
+    pos_rot.append(pos_rot[0])
+
+    # ── Opacity keyframes: visible walk+celebrate, hidden teleport ──
+    op_times = []
+    op_vals  = []
+
+    for si, seg in enumerate(segments):
+        ws = seg["walk_start"]
+        ce = seg["celeb_end"]
+
+        if si == 0:
+            op_times.append(0.0)
+            op_vals.append(1.0)
         else:
-            angle = 0
-        ant_rot_vals.append(f"{angle:.0f}")
+            # Reappear at new start
+            op_times.append(round(ws - 0.05, 4))
+            op_vals.append(0.0)
+            op_times.append(round(ws, 4))
+            op_vals.append(1.0)
 
-    # Add celebration hold + reset
-    # Ant stays at target during celebration, then jumps to start
-    sr, sc = path[0]
-    start_cx = gx + sc * STEP + CELL / 2
-    start_cy = gy + sr * STEP + CELL / 2
+        # Disappear at celebration end
+        op_times.append(round(ce - 0.05, 4))
+        op_vals.append(1.0)
+        op_times.append(round(ce, 4))
+        op_vals.append(0.0)
 
-    end_cx = float(ant_x_vals[-1])
-    end_cy = float(ant_y_vals[-1])
-    end_rot = ant_rot_vals[-1]
-    start_rot = ant_rot_vals[0]
+    # Stay invisible until loop restarts
+    op_times.append(total_dur)
+    op_vals.append(0.0)
 
-    # Keyframes for the full cycle: walk + celebrate + reset
-    all_times = list(step_times)
-    all_times.append(walk_dur)                          # arrival at target
-    all_times.append(walk_dur + celebrate_dur)           # end celebration
-    all_times.append(total_dur)                          # loop start
+    kt_pos = _kt(pos_times, total_dur)
+    kt_op  = _kt(op_times, total_dur)
+    op_str = ";".join(f"{v}" for v in op_vals)
 
-    all_x = list(ant_x_vals) + [f"{end_cx:.1f}", f"{start_cx:.1f}", f"{start_cx:.1f}"]
-    all_y = list(ant_y_vals) + [f"{end_cy:.1f}", f"{start_cy:.1f}", f"{start_cy:.1f}"]
-    all_rot = list(ant_rot_vals) + [end_rot, start_rot, start_rot]
-
-    # Ant opacity: walks visible, celebrate flash, reset invisible briefly
-    all_op_times = [0, walk_dur, walk_dur + 0.2, walk_dur + celebrate_dur - 0.3,
-                    walk_dur + celebrate_dur, total_dur]
-    all_op_vals = [1.0, 1.0, 1.0, 1.0, 0.0, 1.0]
-
-    kt_walk = _kt(all_times, total_dur)
-    x_str = ";".join(all_x)
-    y_str = ";".join(all_y)
-    rot_str = ";".join(all_rot)
-
-    kt_op = _kt(all_op_times, total_dur)
-    op_str = ";".join(f"{v}" for v in all_op_vals)
-
-    # Ant body group  — drawn at origin (0,0), translated by animation
-    # Body: 3 segments + 6 legs + 2 antennae + head
+    # ── Ant body group ────────────────────────────────────────
     ant_color = "#cc6633"
-    ant_dark = "#8b4513"
-    ant_leg = "#995522"
-    ant_size = 4.5  # half-body length
+    ant_dark  = "#8b4513"
+    ant_leg   = "#995522"
+    ant_size  = 4.5
 
     s.append(f'<g opacity="1">')
     s.append(
@@ -557,48 +628,44 @@ def generate_svg(matrix):
         f'repeatCount="indefinite" keyTimes="{kt_op}" values="{op_str}"/>'
     )
 
-    # We animate via a nested structure:
-    # Outer <g> moves X, inner <g> moves Y, innermost <g> rotates
+    # Outer <g> → X translation
     s.append(f'<g>')
     s.append(
         f'<animateTransform attributeName="transform" type="translate" '
         f'dur="{total_dur}s" repeatCount="indefinite" '
-        f'keyTimes="{kt_walk}" '
-        f'values="{";".join(f"{x} 0" for x in all_x)}"/>'
+        f'keyTimes="{kt_pos}" '
+        f'values="{";".join(f"{v:.1f} 0" for v in pos_x)}"/>'
     )
 
+    # Inner <g> → Y translation
     s.append(f'<g>')
     s.append(
         f'<animateTransform attributeName="transform" type="translate" '
         f'dur="{total_dur}s" repeatCount="indefinite" '
-        f'keyTimes="{kt_walk}" '
-        f'values="{";".join(f"0 {y}" for y in all_y)}"/>'
+        f'keyTimes="{kt_pos}" '
+        f'values="{";".join(f"0 {v:.1f}" for v in pos_y)}"/>'
     )
 
-    # Rotation group
+    # Innermost <g> → rotation
     s.append(f'<g>')
     s.append(
         f'<animateTransform attributeName="transform" type="rotate" '
         f'dur="{total_dur}s" repeatCount="indefinite" '
-        f'keyTimes="{kt_walk}" '
-        f'values="{";".join(f"{r} 0 0" for r in all_rot)}"/>'
+        f'keyTimes="{kt_pos}" '
+        f'values="{";".join(f"{v:.0f} 0 0" for v in pos_rot)}"/>'
     )
 
     # ── Ant body drawn at (0,0) facing right ──
-    # Abdomen (rear)
     s.append(f'<ellipse cx="-{ant_size}" cy="0" rx="3" ry="2.2" fill="{ant_color}"/>')
-    # Thorax (middle)
     s.append(f'<ellipse cx="0" cy="0" rx="2.5" ry="2" fill="{ant_dark}"/>')
-    # Head
     s.append(
         f'<ellipse cx="{ant_size - 0.5}" cy="0" rx="2" ry="1.8" fill="{ant_color}" '
         f'filter="url(#glo)"/>'
     )
-    # Eyes
     s.append(f'<circle cx="{ant_size + 0.8}" cy="-0.8" r="0.5" fill="#ffffff"/>')
     s.append(f'<circle cx="{ant_size + 0.8}" cy="0.8" r="0.5" fill="#ffffff"/>')
 
-    # Antennae (curved lines)
+    # Antennae
     s.append(
         f'<line x1="{ant_size + 1}" y1="-1" x2="{ant_size + 4}" y2="-3.5" '
         f'stroke="{ant_leg}" stroke-width="0.5" stroke-linecap="round">'
@@ -613,11 +680,10 @@ def generate_svg(matrix):
         f'</line>'
     )
 
-    # Legs (3 pairs, animated walking)
-    leg_positions = [-3.5, 0, 3.0]  # x positions along body
+    # Legs (3 pairs)
+    leg_positions = [-3.5, 0, 3.0]
     for li, lx in enumerate(leg_positions):
         phase = li * 0.12
-        # Top leg
         s.append(
             f'<line x1="{lx}" y1="-2" x2="{lx - 0.5}" y2="-5" '
             f'stroke="{ant_leg}" stroke-width="0.6" stroke-linecap="round">'
@@ -627,7 +693,6 @@ def generate_svg(matrix):
             f'dur="0.3s" begin="{phase}s" repeatCount="indefinite"/>'
             f'</line>'
         )
-        # Bottom leg
         s.append(
             f'<line x1="{lx}" y1="2" x2="{lx + 0.5}" y2="5" '
             f'stroke="{ant_leg}" stroke-width="0.6" stroke-linecap="round">'
@@ -663,7 +728,6 @@ def generate_svg(matrix):
     last_rx = lx_start + len(HEAT) * (leg_cell + leg_gap_px)
     s.append(f'<text x="{last_rx + 4}" y="{ly + 3}" style="{leg_style}">More</text>')
 
-    # Ant icon + label in legend
     ant_lx = gx + 2
     s.append(
         f'<text x="{ant_lx}" y="{ly + 3}" style="{leg_style}">'
