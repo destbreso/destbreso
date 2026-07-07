@@ -51,7 +51,7 @@ body {
 .intro { margin: 30px 0 26px; }
 .intro .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
 .intro h1 { font-size: clamp(26px, 5vw, 40px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -0.6px; font-weight: 700; text-wrap: balance; }
-.intro p { color: var(--muted); max-width: 60ch; margin: 0; font-size: 16px; }
+.intro p { color: var(--muted); margin: 0; font-size: 16px; text-align: justify; }
 .intro .qed { color: var(--accent); }
 
 section { margin-top: 40px; }
@@ -115,7 +115,7 @@ section { margin-top: 40px; }
 .dec .act .a { color: var(--accent); font-family: var(--mono); flex-shrink: 0; }
 
 /* math ∩ computation gallery: the three lenses on a year of commits */
-.sec-lede { color: var(--muted); max-width: 74ch; margin: -4px 0 18px; font-size: 14.5px; }
+.sec-lede { color: var(--muted); margin: -4px 0 18px; font-size: 14.5px; text-align: justify; }
 .figs { display: flex; flex-direction: column; gap: 16px; }
 .fig { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
 .fig-media { min-width: 0; }
@@ -123,8 +123,8 @@ section { margin-top: 40px; }
 .fig--square .fig-media { max-width: 460px; margin: 0 auto; }
 .fig figcaption { margin-top: 14px; }
 .fig .fig-t { font-size: 15.5px; font-weight: 700; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.2px; }
-.fig figcaption p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.66; max-width: 82ch; }
-.fig figcaption .fig-note { margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--faint); }
+.fig figcaption p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.66; text-align: justify; }
+.fig figcaption .fig-note { margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--faint); text-align: justify; }
 .fig figcaption b { color: var(--accent); font-weight: 600; }
 @media (max-width: 760px) { .fig--square .fig-media { max-width: 300px; } }
 

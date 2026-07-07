@@ -269,7 +269,7 @@ def build():
     trend_up = len(mvals) >= 6 and sum(mvals[-3:]) > sum(mvals[:3])
 
     data["insights"] = {
-        "rhythm": ("Most commits land in the <b>" + peak_block + "</b> block. "
+        "rhythm": ("Across the year, most commits land in the <b>" + peak_block + "</b> block. "
                    "<b>Decision:</b> I protect that window for deep work and keep meetings out."),
         "langs": ("<b>" + top_lang + "</b> leads the stack"
                   + (", with <b>Python</b> close behind for the analytical work" if has_py else "")
