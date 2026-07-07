@@ -90,9 +90,17 @@ section { margin-top: 40px; }
 .marg { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
 .barrow { display: grid; grid-template-columns: 82px 1fr 40px; align-items: center; gap: 10px; font-size: 12.5px; }
 .barrow .bl { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.barrow .track { height: 8px; background: #131a24; border-radius: 4px; overflow: hidden; }
-.barrow .track > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--c2), var(--accent)); }
+.barrow .track { height: 8px; background: #131a24; border-radius: 4px; overflow: hidden; display: flex; }
+.barrow .track > .seg { height: 100%; }
+.barrow .track > .seg.pub { background: linear-gradient(90deg, var(--c2), var(--accent)); }
+.barrow .track > .seg.priv { background: var(--c3); }
 .barrow .bv { font-family: var(--mono); font-size: 11px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+
+.pp-key { display: flex; gap: 14px; margin-top: 11px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; color: var(--faint); }
+.pp-key span { display: inline-flex; align-items: center; gap: 5px; }
+.pp-key i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.pp-key .pub { background: var(--accent); }
+.pp-key .priv { background: var(--c3); }
 
 .stack { height: 22px; display: flex; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
 .stack > span { height: 100%; }
@@ -110,7 +118,8 @@ section { margin-top: 40px; }
 .projrow .track { height: 8px; background: #131a24; border-radius: 4px; overflow: hidden; }
 .projrow .track > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--c2), var(--accent)); }
 .projrow.priv .pn { color: var(--muted); font-style: italic; }
-.projrow.priv .track > i, .projrow.other .track > i { background: #3a4658; }
+.projrow.priv .track > i { background: var(--c3); }
+.projrow.other .track > i { background: #3a4658; }
 
 .thisweek { margin-top: 14px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 11px 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--muted); }
 .thisweek .tw-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); flex-shrink: 0; }

@@ -17,6 +17,7 @@ import urllib.request
 
 USER = os.environ.get("GH_USER", "destbreso")
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
+PAT = os.environ.get("PAT_TOKEN", "")  # optional PAT: makes the calendar include PRIVATE contributions
 OUT = os.path.join("dist", "contours.svg")
 
 BG = "#0b0e14"; GRID = "#141b26"; ACC = "#4dd4e0"
@@ -48,7 +49,7 @@ def field():
     req = urllib.request.Request(
         "https://api.github.com/graphql",
         data=json.dumps({"query": CAL_Q, "variables": {"login": USER}}).encode(),
-        headers={"Authorization": "Bearer " + TOKEN, "User-Agent": USER + "-contours"},
+        headers={"Authorization": "Bearer " + (PAT or TOKEN), "User-Agent": USER + "-contours"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as r:

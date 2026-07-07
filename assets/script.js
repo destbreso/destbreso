@@ -38,10 +38,10 @@ var SAMPLE = {
     return rows;
   })(),
   blocks: [
-    { l: "night 21-06", v: 41 },
-    { l: "evening 17-21", v: 24 },
-    { l: "afternoon 12-17", v: 20 },
-    { l: "morning 06-12", v: 15 }
+    { l: "night 21-06", v: 41, pubv: 12, privv: 29 },
+    { l: "evening 17-21", v: 24, pubv: 9, privv: 15 },
+    { l: "afternoon 12-17", v: 20, pubv: 11, privv: 9 },
+    { l: "morning 06-12", v: 15, pubv: 10, privv: 5 }
   ],
   langs: [
     { n: "TypeScript", p: 46 },
@@ -51,6 +51,7 @@ var SAMPLE = {
     { n: "Other", p: 12 }
   ],
   momentum: [74, 88, 79, 102, 96, 118, 84, 52, 96, 124, 116, 141],
+  momentumPublic: [28, 30, 26, 34, 31, 40, 30, 20, 33, 42, 39, 46],
   momentumLabels: ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"],
   momentumAnnot: { index: 7, text: "platform ship + debt paydown" },
   insights: {
@@ -127,10 +128,14 @@ function render(D) {
       row.map(function (v) { return '<i style="background:' + heatColor(v) + '"></i>'; }).join("") + "</div>";
   }).join("");
 
-  // marginal blocks
-  var maxB = Math.max.apply(null, D.blocks.map(function (b) { return b.v; }));
+  // marginal blocks, stacked public + private
+  var maxB = Math.max.apply(null, D.blocks.map(function (b) { return b.v; }).concat([1]));
   $("#marg").innerHTML = D.blocks.map(function (b) {
-    return '<div class="barrow"><span class="bl">' + b.l + '</span><span class="track"><i style="width:' + (b.v / maxB * 100) + '%"></i></span><span class="bv">' + b.v + "%</span></div>";
+    var pub = b.pubv != null ? b.pubv : b.v, priv = b.privv || 0;
+    return '<div class="barrow"><span class="bl">' + b.l + '</span>' +
+      '<span class="track"><i class="seg pub" style="width:' + (pub / maxB * 100) + '%"></i>' +
+      '<i class="seg priv" style="width:' + (priv / maxB * 100) + '%"></i></span>' +
+      '<span class="bv">' + b.v + "%</span></div>";
   }).join("");
 
   // language stacked bar + legend
@@ -175,6 +180,11 @@ function render(D) {
     if (el && txt) el.innerHTML = '<span class="arrow">→</span><span>' + txt + "</span>";
   });
 
+  // show the public/private key only when there IS private data to distinguish
+  var hasPrivate = (D.projects || []).some(function (p) { return p.kind === "private" && p.c > 0; }) ||
+    (D.blocks || []).some(function (b) { return (b.privv || 0) > 0; });
+  [].forEach.call(document.querySelectorAll(".pp-key"), function (el) { el.style.display = hasPrivate ? "" : "none"; });
+
   drawMomentum(D);
 }
 
@@ -182,40 +192,54 @@ function drawMomentum(D) {
   var cv = $("#mom");
   if (!cv) return;
   var dpr = Math.min(2, window.devicePixelRatio || 1);
+  var total = D.momentum || [];
+  var pub = (D.momentumPublic && D.momentumPublic.length === total.length) ? D.momentumPublic : total;
   function draw() {
     var w = cv.clientWidth || 880, h = 200;
     cv.width = w * dpr; cv.height = h * dpr;
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    var vals = D.momentum, n = vals.length, pad = 28, gx = w - pad * 1.4, gy = h - 26;
-    var max = Math.max.apply(null, vals) * 1.12 || 1, min = 0;
+    var n = total.length, pad = 28, gx = w - pad * 1.4, gy = h - 26;
+    if (!n) return;
+    var max = Math.max.apply(null, total) * 1.12 || 1;
     function X(i) { return pad + (i / (n - 1)) * gx; }
-    function Y(v) { return 8 + (1 - (v - min) / (max - min)) * (gy - 8); }
+    function Y(v) { return 8 + (1 - v / max) * (gy - 8); }
     ctx.strokeStyle = "#18202c"; ctx.lineWidth = 1;
     for (var g = 0; g <= 3; g++) { var yy = 8 + (g / 3) * (gy - 8); ctx.beginPath(); ctx.moveTo(pad, yy); ctx.lineTo(pad + gx, yy); ctx.stroke(); }
-    var grad = ctx.createLinearGradient(0, 0, 0, gy);
-    grad.addColorStop(0, "rgba(77,212,224,.28)"); grad.addColorStop(1, "rgba(77,212,224,0)");
-    ctx.beginPath(); ctx.moveTo(X(0), Y(vals[0]));
-    for (var i = 1; i < n; i++) ctx.lineTo(X(i), Y(vals[i]));
-    ctx.lineTo(X(n - 1), gy); ctx.lineTo(X(0), gy); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(X(0), Y(vals[0]));
-    for (var i = 1; i < n; i++) ctx.lineTo(X(i), Y(vals[i]));
+    // filled band between two series (traced forward on top, back on bottom)
+    function band(low, high, fill) {
+      ctx.beginPath(); ctx.moveTo(X(0), Y(high[0]));
+      for (var i = 1; i < n; i++) ctx.lineTo(X(i), Y(high[i]));
+      for (var j = n - 1; j >= 0; j--) ctx.lineTo(X(j), Y(low[j]));
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    }
+    var zero = []; for (var z = 0; z < n; z++) zero.push(0);
+    var anyPriv = false; for (var p = 0; p < n; p++) if (total[p] - pub[p] > 0.0001) anyPriv = true;
+    band(zero, pub, "rgba(77,212,224,.30)");                 // public
+    if (anyPriv) band(pub, total, "rgba(167,139,250,.34)");  // private, stacked on top
+    // total outline
+    ctx.beginPath(); ctx.moveTo(X(0), Y(total[0]));
+    for (var i2 = 1; i2 < n; i2++) ctx.lineTo(X(i2), Y(total[i2]));
     ctx.strokeStyle = "#4dd4e0"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
-    // least-squares trend
+    if (anyPriv) {  // subtle public boundary line so the split reads
+      ctx.beginPath(); ctx.moveTo(X(0), Y(pub[0]));
+      for (var i3 = 1; i3 < n; i3++) ctx.lineTo(X(i3), Y(pub[i3]));
+      ctx.strokeStyle = "rgba(77,212,224,.5)"; ctx.lineWidth = 1; ctx.stroke();
+    }
+    // least-squares trend on the total
     var sx = 0, sy = 0, sxy = 0, sxx = 0;
-    for (var i = 0; i < n; i++) { sx += i; sy += vals[i]; sxy += i * vals[i]; sxx += i * i; }
+    for (var i4 = 0; i4 < n; i4++) { sx += i4; sy += total[i4]; sxy += i4 * total[i4]; sxx += i4 * i4; }
     var b = (n * sxy - sx * sy) / (n * sxx - sx * sx), a = (sy - b * sx) / n;
     ctx.beginPath(); ctx.moveTo(X(0), Y(a)); ctx.lineTo(X(n - 1), Y(a + b * (n - 1)));
-    ctx.strokeStyle = "rgba(167,139,250,.8)"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(X(n - 1), Y(vals[n - 1]), 3.2, 0, 7); ctx.fillStyle = "#4dd4e0"; ctx.fill();
+    ctx.strokeStyle = "rgba(147,160,178,.7)"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(X(n - 1), Y(total[n - 1]), 3.2, 0, 7); ctx.fillStyle = "#4dd4e0"; ctx.fill();
     ctx.fillStyle = "#5c6675"; ctx.font = "10px ui-monospace,monospace"; ctx.textAlign = "center";
     (D.momentumLabels || []).forEach(function (l, i) { if (i % 2 === 0) ctx.fillText(l, X(i), h - 8); });
-    // annotation
     var an = $("#momAnnot");
     if (an && D.momentumAnnot) {
       var idx = Math.max(0, Math.min(n - 1, D.momentumAnnot.index));
       an.textContent = D.momentumAnnot.text;
       an.style.left = Math.min(X(idx), w - 190) + "px";
-      an.style.top = Y(vals[idx]) - 34 + "px";
+      an.style.top = Y(total[idx]) - 34 + "px";
       an.style.display = "";
     } else if (an) { an.style.display = "none"; }
   }

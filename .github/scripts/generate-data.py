@@ -32,8 +32,11 @@ BLOCKS = [
 ]
 
 
-def _req(url, data=None, headers=None):
-    h = {"Authorization": "Bearer " + TOKEN, "User-Agent": USER + "-signal",
+def _req(url, data=None, headers=None, token=None):
+    # Prefer an explicit token, then the PAT, then GITHUB_TOKEN. The PAT (when set)
+    # makes the calendar, momentum, KPIs and languages include PRIVATE work; forcing
+    # GITHUB_TOKEN gives the PUBLIC-only view used for the public/private split.
+    h = {"Authorization": "Bearer " + (token or PAT or TOKEN), "User-Agent": USER + "-signal",
          "Accept": "application/vnd.github+json"}
     if headers:
         h.update(headers)
@@ -44,8 +47,8 @@ def _req(url, data=None, headers=None):
         return json.loads(r.read().decode()), r.headers
 
 
-def gql(query, variables):
-    d, _ = _req("https://api.github.com/graphql", {"query": query, "variables": variables})
+def gql(query, variables, token=None):
+    d, _ = _req("https://api.github.com/graphql", {"query": query, "variables": variables}, token=token)
     if "errors" in d:
         raise RuntimeError(d["errors"])
     return d["data"]
@@ -172,8 +175,8 @@ def window(days_ago_from, days_ago_to):
     return (now - timedelta(days=days_ago_from)).isoformat(), (now - timedelta(days=days_ago_to)).isoformat()
 
 
-def calendar_days(frm, to):
-    d = gql(CAL_Q, {"login": USER, "from": frm, "to": to})
+def calendar_days(frm, to, token=None):
+    d = gql(CAL_Q, {"login": USER, "from": frm, "to": to}, token=token)
     cc = d["user"]["contributionsCollection"]
     days = [(day["date"], day["contributionCount"])
             for w in cc["contributionCalendar"]["weeks"] for day in w["contributionDays"]]
@@ -193,9 +196,15 @@ def monthly(days):
     for date, c in days:
         agg[date[:7]] += c  # YYYY-MM
     keys = sorted(agg.keys())[-12:]
-    vals = [agg[k] for k in keys]
     labels = [MONTHS[int(k[5:7]) - 1] for k in keys]
-    return vals, labels
+    return keys, [agg[k] for k in keys], labels
+
+
+def monthly_on(days, keys):
+    agg = defaultdict(int)
+    for date, c in days:
+        agg[date[:7]] += c
+    return [agg.get(k, 0) for k in keys]
 
 
 def pct(delta_now, delta_prev):
@@ -212,7 +221,14 @@ def build():
     commits, days = calendar_days(frm, to)
     active = sum(1 for _, c in days if c > 0)
     streak = longest_streak(days)
-    mvals, mlabels = monthly(days)
+    mkeys, mvals, mlabels = monthly(days)
+    # public-only monthly (forced GITHUB_TOKEN) so momentum can stack public vs private
+    try:
+        _, pub_days = calendar_days(frm, to, token=TOKEN)
+        pubm = monthly_on(pub_days, mkeys)
+        mvals_public = [min(pubm[i], mvals[i]) for i in range(len(mkeys))]
+    except Exception:
+        mvals_public = list(mvals)
 
     try:
         pfrm, pto = window(730, 365)
@@ -242,6 +258,7 @@ def build():
         {"label": "public repos", "val": repos_total, "delta": 0, "spark": mvals},
     ]
     data["momentum"] = mvals
+    data["momentumPublic"] = mvals_public
     data["momentumLabels"] = mlabels
     if mvals:
         peak_i = mvals.index(max(mvals))
@@ -257,6 +274,8 @@ def build():
         include_private = bool(PAT)
         matrix = [[0] * 24 for _ in range(7)]
         block_counts = defaultdict(int)
+        block_pub = defaultdict(int)
+        block_priv = defaultdict(int)
         week_blocks = defaultdict(int)
         since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
         week_cut = datetime.now(timezone.utc) - timedelta(days=7)
@@ -269,6 +288,7 @@ def build():
                 blk = block_of(local.hour)
                 matrix[local.weekday()][local.hour] += 1
                 block_counts[blk] += 1
+                (block_priv if priv else block_pub)[blk] += 1
                 seen += 1
                 cnt += 1
                 if dt >= week_cut:
@@ -280,7 +300,10 @@ def build():
             mx = max((max(r) for r in matrix), default=0) or 1
             data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
             total_b = sum(block_counts.values()) or 1
-            data["blocks"] = [{"l": label, "v": round(block_counts.get(label, 0) / total_b * 100)}
+            data["blocks"] = [{"l": label,
+                               "v": round(block_counts.get(label, 0) / total_b * 100),
+                               "pubv": round(block_pub.get(label, 0) / total_b * 100),
+                               "privv": round(block_priv.get(label, 0) / total_b * 100)}
                               for label, _ in BLOCKS]
             data["blocks"].sort(key=lambda b: -b["v"])
             data["rhythmScope"] = "all repos" if include_private else "public repos"
@@ -291,13 +314,13 @@ def build():
     except Exception as ex:
         print("rhythm skipped:", ex, file=sys.stderr)
 
-    # ---- languages across recent owned repos ----
+    # ---- languages across owned repos (private included when a PAT is set) ----
     try:
-        repos = rest("/users/" + USER + "/repos?type=owner&sort=pushed", page=1)
+        rtoken = PAT or TOKEN
         totals = defaultdict(int)
-        for r in [r for r in repos if not r.get("fork")][:30]:
+        for full, _ in owner_repos(rtoken, bool(PAT))[:30]:
             try:
-                for lang, b in rest("/repos/" + r["full_name"] + "/languages").items():
+                for lang, b in rest_tok("/repos/" + full + "/languages", rtoken).items():
                     totals[lang] += b
             except Exception:
                 continue

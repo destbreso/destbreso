@@ -27,12 +27,14 @@ jobs:
       - name: Generate signal SVG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-signal.py
 
       # ── The year as a landscape: marching-squares contour map ────
       - name: Generate contours SVG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-contours.py
 
       # ── Analyst-page data snapshot ───────────────────────────────
