@@ -47,7 +47,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/generate-matrix-rain.py
 
-      # ── Push all SVGs to output branch ───────────────────────────
+      - name: Generate data snapshot (data.json)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-data.py
+
+      # ── Push all SVGs + data.json to output branch ───────────────
       - name: Deploy to output branch
         uses: crazy-max/ghaction-github-pages@v3.1.0
         with:

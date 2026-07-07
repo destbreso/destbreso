@@ -3,354 +3,81 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>destbreso — GitHub Dashboard</title>
+    <title>destbreso · signal</title>
     <meta
       name="description"
-      content="Advanced interactive GitHub dashboard for @destbreso — live stats, contribution visualizations, and coding patterns."
+      content="How David Estévez builds, read from the data. An analyst's view of real commit history: work rhythm, portfolio mix, momentum, and the decisions the data drives. Rebuilt daily."
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0e14'/%3E%3Crect x='19' y='19' width='8' height='8' fill='none' stroke='%234dd4e0' stroke-width='2'/%3E%3Cpath d='M5 22 C10 22 11 8 16 8 S22 22 27 22' fill='none' stroke='%234dd4e0' stroke-width='2'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
-    <!-- ═══ GLOBAL MATRIX RAIN BG ═════════════════════════════════ -->
-    <canvas id="matrix-canvas"></canvas>
-
-    <!-- ═══ NAV ═══════════════════════════════════════════════════ -->
-    <nav id="navbar">
-      <div class="nav-inner">
-        <a href="#" class="nav-logo">
-          <span class="logo-bracket">{</span><span class="logo-text">d.e</span
-          ><span class="logo-bracket">}</span>
-          <span class="logo-sep">//</span>
-          <span class="logo-label">DASHBOARD</span>
-        </a>
-        <div class="nav-right">
-          <div class="live-badge"><span class="live-dot"></span>Live</div>
-          <a
-            href="https://github.com/destbreso"
-            target="_blank"
-            rel="noopener"
-            class="nav-link"
-            ><i data-lucide="github"></i> @destbreso</a
-          >
-          <a
-            href="https://destbreso.com"
-            target="_blank"
-            rel="noopener"
-            class="nav-link nav-link-ext"
-            >destbreso.com <i data-lucide="external-link"></i
-          ></a>
-        </div>
+    <div class="wrap">
+      <div class="bar">
+        <span class="mono-logo"><span class="brace">{</span>d.e<span class="brace">}</span></span>
+        <span class="live"><b></b> <span id="updated">daily snapshot</span></span>
+        <span class="right">
+          <a href="https://github.com/destbreso" target="_blank" rel="noopener">@destbreso</a>
+          <a href="https://destbreso.com" target="_blank" rel="noopener">destbreso.com &#8599;</a>
+        </span>
       </div>
-    </nav>
 
-    <!-- ═══ HERO: Terminal ═════════════════════════════════════════ -->
-    <section id="hero">
-      <div class="hero-overlay">
-        <div class="terminal-window">
-          <div class="terminal-bar">
-            <span class="dot red"></span><span class="dot yellow"></span
-            ><span class="dot green"></span>
-            <span class="terminal-title">github-dashboard</span>
-          </div>
-          <div class="terminal-body">
-            <p>
-              <span class="prompt">$</span> <span id="typed-cmd"></span
-              ><span class="cursor">█</span>
-            </p>
-            <div id="terminal-output"></div>
-          </div>
-        </div>
+      <div class="intro">
+        <div class="eyebrow">// signal</div>
+        <h1>How I build, read from the data.</h1>
+        <p>I don't just ship code, I measure it. Every chart below is derived from my real commit history and paired with the decision it drives. Rebuilt once a day by a GitHub Action, so nothing here is live-fetched or breakable. <span class="qed">&#8718;</span></p>
       </div>
-    </section>
 
-    <!-- ═══ STATS ROW ═════════════════════════════════════════════ -->
-    <section id="stats">
-      <div class="container">
-        <div class="stats-grid" id="stats-grid">
-          <!-- rendered by JS -->
-        </div>
-      </div>
-    </section>
+      <section>
+        <div class="sec-head"><span class="idx">01</span><h2>The headline numbers</h2><span class="hint">trailing 12 months</span></div>
+        <div class="kpis" id="kpis"></div>
+      </section>
 
-    <!-- ═══ CONTRIBUTION GRAPH (real GitHub data) ═══════════════ -->
-    <section id="contributions" data-animate="fade-up">
-      <div class="container">
-        <div class="dash-card">
-          <div class="card-header">
-            <h2><i data-lucide="git-commit-horizontal"></i> Contributions</h2>
-            <span class="card-hint" id="contrib-total"></span>
+      <section>
+        <div class="sec-head"><span class="idx">02</span><h2>When the work happens</h2><span class="hint">commits · day &#215; hour</span></div>
+        <div class="grid2">
+          <div class="card">
+            <div class="rhythm" id="rhythm"></div>
+            <div class="hm-x"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+            <div class="insight" id="insight-rhythm"></div>
           </div>
-          <div class="contrib-wrap">
-            <div class="contrib-months" id="contrib-months"></div>
-            <div class="contrib-body">
-              <div class="contrib-days" id="contrib-days"></div>
-              <div class="contrib-grid" id="contrib-grid"></div>
-            </div>
-            <div class="chart-loading" id="contrib-loading">
-              <div class="spinner"></div>
-            </div>
-          </div>
-          <div class="hm-legend" style="margin-top: 12px">
-            <span>Less</span>
-            <div class="hm-scale">
-              <i style="background: rgba(255, 255, 255, 0.03)"></i>
-              <i style="background: rgba(34, 211, 238, 0.15)"></i>
-              <i style="background: rgba(34, 211, 238, 0.35)"></i>
-              <i style="background: rgba(34, 211, 238, 0.6)"></i>
-              <i style="background: var(--accent)"></i>
-            </div>
-            <span>More</span>
+          <div class="card">
+            <div class="card-kicker">share of commits by block</div>
+            <div class="marg" id="marg"></div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ═══ COMMIT DISTRIBUTION ═══════════════════════════════════ -->
-    <section id="distribution" data-animate="fade-up">
-      <div class="container">
-        <div class="dash-card">
-          <div class="card-header">
-            <h2><i data-lucide="bar-chart-3"></i> Commit Distribution</h2>
-            <div class="chart-tabs" id="dist-tabs">
-              <button class="chart-tab active" data-range="days">
-                30 Days
-              </button>
-              <button class="chart-tab" data-range="weeks">Weeks</button>
-              <button class="chart-tab" data-range="months">12 Months</button>
-            </div>
-          </div>
-          <div class="chart-box" style="height: 220px">
-            <canvas id="dist-chart"></canvas>
-            <div class="chart-loading" id="dist-loading">
-              <div class="spinner"></div>
-            </div>
-          </div>
+      <section>
+        <div class="sec-head"><span class="idx">03</span><h2>What the work is made of</h2><span class="hint">bytes across active repos</span></div>
+        <div class="card">
+          <div class="stack" id="stack"></div>
+          <div class="legend" id="legend"></div>
+          <div class="insight" id="insight-langs"></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ═══ HEATMAP + LANGUAGES ═══════════════════════════════════ -->
-    <section id="analytics" data-animate="fade-up">
-      <div class="container">
-        <div class="grid-2">
-          <!-- Heatmap -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="grid-3x3"></i> Activity Heatmap</h2>
-              <span class="card-hint">Day × Hour</span>
-            </div>
-            <div class="heatmap-wrap">
-              <div class="hm-y" id="hm-y"></div>
-              <div class="hm-grid" id="hm-grid"></div>
-              <div class="hm-x" id="hm-x"></div>
-              <div class="chart-loading" id="hm-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-            <div class="hm-legend">
-              <span>Less</span>
-              <div class="hm-scale">
-                <i style="background: var(--bg-card)"></i>
-                <i style="background: rgba(34, 211, 238, 0.15)"></i>
-                <i style="background: rgba(34, 211, 238, 0.35)"></i>
-                <i style="background: rgba(34, 211, 238, 0.6)"></i>
-                <i style="background: var(--accent)"></i>
-              </div>
-              <span>More</span>
-            </div>
-          </div>
-          <!-- Language Donut -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="pie-chart"></i> Languages</h2>
-            </div>
-            <div class="lang-wrap">
-              <canvas id="lang-chart" width="180" height="180"></canvas>
-              <div class="lang-list" id="lang-list"></div>
-              <div class="chart-loading" id="lang-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
+      <section>
+        <div class="sec-head"><span class="idx">04</span><h2>Momentum</h2><span class="hint">commits per month · with trend</span></div>
+        <div class="card">
+          <div class="mom-wrap"><canvas id="mom" height="200"></canvas><div class="annot" id="momAnnot"></div></div>
+          <div class="insight" id="insight-mom"></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ═══ RADAR + TIMELINE ══════════════════════════════════════ -->
-    <section id="patterns" data-animate="fade-up">
-      <div class="container">
-        <div class="grid-2">
-          <!-- Coding Patterns Radar -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="radar"></i> Coding Patterns</h2>
-              <span class="card-hint">Time-of-Day</span>
-            </div>
-            <div class="chart-box" style="height: 300px">
-              <canvas id="radar-chart"></canvas>
-            </div>
-          </div>
-          <!-- Recent Activity Timeline -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="activity"></i> Recent Activity</h2>
-            </div>
-            <div class="timeline-feed" id="timeline-feed">
-              <div class="chart-loading" id="tl-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <section>
+        <div class="sec-head"><span class="idx">05</span><h2>What the data tells me to do</h2><span class="hint">observation &rarr; decision</span></div>
+        <div class="decisions" id="decisions"></div>
+      </section>
 
-    <!-- ═══ TOP REPOS ═════════════════════════════════════════════ -->
-    <section id="repos" data-animate="fade-up">
-      <div class="container">
-        <div class="section-header">
-          <h2><i data-lucide="folder-git-2"></i> Top Repositories</h2>
-          <a
-            href="https://github.com/destbreso?tab=repositories"
-            target="_blank"
-            rel="noopener"
-            class="view-all"
-            >View all <i data-lucide="external-link"></i
-          ></a>
-        </div>
-        <div class="repos-grid" id="repos-grid">
-          <div class="chart-loading" id="repos-loading">
-            <div class="spinner"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ PROJECT ANALYTICS ══════════════════════════════════════ -->
-    <section id="projects" data-animate="fade-up">
-      <div class="container">
-        <div class="section-header">
-          <h2><i data-lucide="layers"></i> Project Analytics</h2>
-          <span class="card-hint">Based on recent activity</span>
-        </div>
-        <div class="grid-2">
-          <!-- Effort Distribution (Horizontal Bars) -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="bar-chart-3"></i> Effort Distribution</h2>
-              <span class="card-hint">Events / Repo</span>
-            </div>
-            <div class="chart-box" style="height: 320px">
-              <canvas id="proj-effort-chart"></canvas>
-              <div class="chart-loading" id="proj-effort-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
-          <!-- Project × Day Heatmap -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="calendar"></i> Project Schedule</h2>
-              <span class="card-hint">Repo × Day</span>
-            </div>
-            <div class="proj-hm-wrap">
-              <div class="proj-hm-labels" id="proj-day-labels"></div>
-              <div class="proj-hm-grid proj-day-cols" id="proj-day-grid"></div>
-              <div class="proj-hm-x" id="proj-day-x"></div>
-              <div class="chart-loading" id="proj-day-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="grid-2" style="margin-top: 20px">
-          <!-- Project × Hour Heatmap -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="clock"></i> Project Hours</h2>
-              <span class="card-hint">Repo × Time Slot</span>
-            </div>
-            <div class="proj-hm-wrap">
-              <div class="proj-hm-labels" id="proj-hour-labels"></div>
-              <div
-                class="proj-hm-grid proj-hour-cols"
-                id="proj-hour-grid"
-              ></div>
-              <div class="proj-hm-x" id="proj-hour-x"></div>
-              <div class="chart-loading" id="proj-hour-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
-          <!-- Project Insights -->
-          <div class="dash-card">
-            <div class="card-header">
-              <h2><i data-lucide="target"></i> Project Insights</h2>
-            </div>
-            <div class="proj-insights" id="proj-insights">
-              <div class="chart-loading" id="proj-ins-loading">
-                <div class="spinner"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ INSIGHTS ══════════════════════════════════════════════ -->
-    <section id="insights" data-animate="fade-up">
-      <div class="container">
-        <div class="section-header">
-          <h2><i data-lucide="brain"></i> Derived Insights</h2>
-        </div>
-        <div class="insights-grid" id="insights-grid">
-          <!-- rendered by JS -->
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ DAILY ACTIVE HOURS TREND ══════════════════════════════ -->
-    <section id="daily-hours" data-animate="fade-up">
-      <div class="container">
-        <div class="dash-card">
-          <div class="card-header">
-            <h2><i data-lucide="timer"></i> Daily Active Hours</h2>
-            <span class="card-hint" id="avg-hours-badge"></span>
-          </div>
-          <div class="chart-box" style="height: 200px">
-            <canvas id="daily-hours-chart"></canvas>
-            <div class="chart-loading" id="daily-hours-loading">
-              <div class="spinner"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══ FOOTER ════════════════════════════════════════════════ -->
-    <footer>
-      <div class="container">
-        <p>
-          Built by <strong>David Estevez</strong> ·
-          <a
-            href="https://github.com/destbreso/destbreso"
-            target="_blank"
-            rel="noopener"
-            >Source</a
-          >
-        </p>
-        <p class="foot-sub">
-          Data from GitHub REST API + Contributions API · © 2025
-        </p>
-      </div>
-    </footer>
+      <footer>
+        <span>data: daily GitHub Action snapshot (no live API, no rate limits)</span>
+        <span class="grow"></span>
+        <a href="https://github.com/destbreso/destbreso" target="_blank" rel="noopener">source</a>
+        <a href="https://destbreso.com" target="_blank" rel="noopener">destbreso.com</a>
+        <span>&#169; <span class="tabnum" id="year">2026</span></span>
+      </footer>
+    </div>
 
     <script src="assets/script.js"></script>
   </body>

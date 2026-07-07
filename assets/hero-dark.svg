@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="David Estevez, mathematician and software developer">
+  <defs>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#141b26" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0b0e14"/>
+      <stop offset="1" stop-color="#0c1119"/>
+    </linearGradient>
+    <linearGradient id="curve" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4dd4e0" stop-opacity="0"/>
+      <stop offset=".35" stop-color="#4dd4e0" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#4dd4e0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="300" fill="url(#fade)"/>
+  <rect width="1200" height="300" fill="url(#grid)" opacity=".5"/>
+  <rect x="0.5" y="0.5" width="1199" height="299" fill="none" stroke="#1b2330" stroke-width="1"/>
+
+  <g opacity=".95">
+    <path d="M690 232 C 772 232, 792 96, 872 96 S 972 232, 1052 232 1152 210 1152 210"
+          fill="none" stroke="url(#curve)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="690" y1="232" x2="1150" y2="232" stroke="#263142" stroke-width="1"/>
+    <circle cx="872" cy="96" r="4.5" fill="#0b0e14" stroke="#4dd4e0" stroke-width="2"/>
+    <g stroke="#33506a" stroke-width="1.4" fill="none">
+      <path d="M754 232 L 872 96 L 1008 232"/>
+      <path d="M754 232 L 1008 232"/>
+    </g>
+    <g fill="#0b0e14" stroke="#4dd4e0" stroke-width="1.6">
+      <circle cx="754" cy="232" r="5"/>
+      <circle cx="1008" cy="232" r="5"/>
+    </g>
+  </g>
+
+  <rect x="1150" y="252" width="11" height="11" fill="none" stroke="#4dd4e0" stroke-width="1.6"/>
+
+  <text x="64" y="86" fill="#4dd4e0" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14" letter-spacing="3">// mathematician who builds</text>
+  <text x="62" y="158" fill="#e8ecf1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="58" font-weight="700" letter-spacing="-1.2">David Est&#233;vez</text>
+  <rect x="66" y="176" width="52" height="3" fill="#4dd4e0"/>
+  <text x="64" y="212" fill="#9198a1" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="21">Algorithms, craft, and systems worth building.</text>
+  <text x="64" y="250" fill="#5c6675" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="13.5">first principles, from proof to production</text>
+</svg>
