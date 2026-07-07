@@ -56,13 +56,23 @@ var SAMPLE = {
   insights: {
     rhythm: "Commits cluster <b>Tuesday to Thursday</b> and taper into the weekend. <b>Decision:</b> I guard midweek for hard problems and keep meetings off it.",
     langs: "<b>TypeScript</b> carries the systems, <b>Python</b> carries the math. <b>Decision:</b> new services default to TS for team velocity; anything analytical starts in Python.",
-    momentum: "A deliberate dip while shipping a platform and paying down debt, then a steady climb. <b>Decision:</b> I read cadence over volume, consistency beats heroics."
+    momentum: "A deliberate dip while shipping a platform and paying down debt, then a steady climb. <b>Decision:</b> I read cadence over volume, consistency beats heroics.",
+    proj: "<b>private work</b> takes the biggest share of commits (43%). <b>Decision:</b> I let the busiest project set the week, and shield the rest from it."
   },
   decisions: [
     { obs: "Most net-new code lands in the <b>first hour</b> of a session.", act: "Protect a cold-start block; batch reviews for later." },
     { obs: "Activity is <b>consistent</b> across months, not spiky.", act: "Trust cadence over crunch; ship small and often." },
     { obs: "The stack splits cleanly: <b>systems in TS, math in Python</b>.", act: "Pick the language by the problem, not by habit." }
-  ]
+  ],
+  projects: [
+    { n: "private work", c: 420, kind: "private" },
+    { n: "cortex", c: 128, kind: "public" },
+    { n: "load-testing-lab", c: 96, kind: "public" },
+    { n: "abakojs", c: 74, kind: "public" },
+    { n: "gaia-pulse", c: 61, kind: "public" },
+    { n: "other public", c: 150, kind: "other" }
+  ],
+  thisWeek: { commits: 34, volDelta: 42, devBlock: "night 21-06", devPts: 12 }
 };
 
 var LANG_COLORS = ["#4dd4e0", "#5b8def", "#a78bfa", "#3fb6a8", "#7d8aa0"];
@@ -90,7 +100,7 @@ function render(D) {
   // is shown whole when there is one, so nothing on the page is half-invented.
   D.kpis = D.kpis || []; D.rhythm = D.rhythm || []; D.blocks = D.blocks || [];
   D.langs = D.langs || []; D.momentum = D.momentum || []; D.decisions = D.decisions || [];
-  D.insights = D.insights || {};
+  D.insights = D.insights || {}; D.projects = D.projects || [];
   var days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   // status line
@@ -131,12 +141,35 @@ function render(D) {
     return '<div class="li"><span class="sw" style="background:' + (LANG_COLORS[i] || "#7d8aa0") + '"></span><span class="lname">' + l.n + '</span><span class="lpct">' + l.p + "%</span></div>";
   }).join("");
 
+  // projects: where the effort goes (public named, private folded into one bar)
+  var pj = $("#proj");
+  if (pj) {
+    var maxC = Math.max.apply(null, D.projects.map(function (p) { return p.c; }).concat([1]));
+    pj.innerHTML = D.projects.map(function (p) {
+      var cls = p.kind === "private" ? " priv" : p.kind === "other" ? " other" : "";
+      return '<div class="projrow' + cls + '"><div class="projtop"><span class="pn">' + p.n +
+        '</span><span class="pc tabnum">' + (p.c || 0).toLocaleString("en-US") + '</span></div>' +
+        '<span class="track"><i style="width:' + (p.c / maxC * 100) + '%"></i></span></div>';
+    }).join("");
+  }
+
+  // this week vs the year baseline
+  var tw = $("#thisweek");
+  if (tw && D.thisWeek) {
+    var t = D.thisWeek;
+    var ar = t.volDelta > 0 ? "↗" : t.volDelta < 0 ? "↘" : "→";
+    var vol = t.volDelta === 0 ? "right on your weekly average"
+      : Math.abs(t.volDelta) + "% " + (t.volDelta > 0 ? "above" : "below") + " your weekly average";
+    var dev = t.devBlock ? ", leaning <b>" + t.devBlock + "</b> (" + (t.devPts >= 0 ? "+" : "") + t.devPts + " pts vs usual)" : "";
+    tw.innerHTML = '<span class="tw-k">this week</span><span class="tw-v"><b>' + t.commits + "</b> commits, " + ar + " " + vol + dev + "</span>";
+  } else if (tw) { tw.style.display = "none"; }
+
   // decisions + insights
   $("#decisions").innerHTML = D.decisions.map(function (d) {
     return '<div class="dec"><div class="obs">' + d.obs + '</div><div class="act"><span class="a">do &rarr;</span><span>' + d.act + "</span></div></div>";
   }).join("");
   var ins = D.insights || {};
-  ["rhythm", "langs", "mom"].forEach(function (key) {
+  ["rhythm", "langs", "mom", "proj"].forEach(function (key) {
     var el = $("#insight-" + key);
     var txt = ins[key === "mom" ? "momentum" : key];
     if (el && txt) el.innerHTML = '<span class="arrow">→</span><span>' + txt + "</span>";

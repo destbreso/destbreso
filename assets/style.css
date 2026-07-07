@@ -102,6 +102,20 @@ section { margin-top: 40px; }
 .legend .lname { color: var(--ink); }
 .legend .lpct { font-family: var(--mono); color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
+.proj { display: flex; flex-direction: column; gap: 12px; }
+.projrow { display: flex; flex-direction: column; gap: 5px; }
+.projrow .projtop { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.projrow .pn { font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.projrow .pc { font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex-shrink: 0; }
+.projrow .track { height: 8px; background: #131a24; border-radius: 4px; overflow: hidden; }
+.projrow .track > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--c2), var(--accent)); }
+.projrow.priv .pn { color: var(--muted); font-style: italic; }
+.projrow.priv .track > i, .projrow.other .track > i { background: #3a4658; }
+
+.thisweek { margin-top: 14px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 11px 14px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--muted); }
+.thisweek .tw-k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); flex-shrink: 0; }
+.thisweek .tw-v b { color: var(--ink); font-weight: 600; }
+
 .mom-wrap { position: relative; }
 .mom-wrap canvas { width: 100%; display: block; }
 .annot { position: absolute; font-family: var(--mono); font-size: 11px; color: var(--accent); background: var(--panel2); border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; pointer-events: none; white-space: nowrap; }

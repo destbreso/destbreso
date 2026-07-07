@@ -72,18 +72,19 @@ def rest_tok(path, token, page=None):
 
 
 def owner_repos(token, include_private):
-    """Owned, non-fork repos. include_private uses /user/repos (needs a PAT)."""
+    """Owned, non-fork repos as (full_name, is_private). include_private uses
+    /user/repos (needs a PAT) so private repos are included in the aggregate."""
     path = ("/user/repos?affiliation=owner&sort=pushed" if include_private
             else "/users/" + USER + "/repos?type=owner&sort=pushed")
-    names = []
+    out = []
     for page in range(1, 4):  # up to 300 repos, most-recently-pushed first
         batch = rest_tok(path, token, page)
         if not batch:
             break
-        names += [r["full_name"] for r in batch if not r.get("fork")]
+        out += [(r["full_name"], bool(r.get("private"))) for r in batch if not r.get("fork")]
         if len(batch) < 100:
             break
-    return names
+    return out
 
 
 def repo_commit_dates(full, token, since):
@@ -105,15 +106,54 @@ def repo_commit_dates(full, token, since):
             return
 
 
-def local_hour_weekday(iso):
-    """(weekday, hour) in the author's local time. GitHub preserves the commit's
-    authored offset; when it is normalized to UTC (Z / +00:00, which Miami never
-    is) we shift by UTC_OFFSET so a late-night commit reads as late night."""
+def block_of(hr):
+    for label, hrs in BLOCKS:
+        if hr in hrs:
+            return label
+    return BLOCKS[-1][0]
+
+
+def parse_commit(iso):
+    """Return (utc_dt, local_dt). utc_dt is timezone-aware for recency checks;
+    local_dt is shifted to the author's local wall clock for weekday/hour
+    bucketing. GitHub normalizes author.date to UTC (Z / +00:00), which Miami
+    never is, so a zero offset means UTC and we apply UTC_OFFSET."""
     dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-    off = dt.utcoffset()
-    if off is None or off == timedelta(0):
-        dt = dt + timedelta(hours=UTC_OFFSET)
-    return dt.weekday(), dt.hour
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    local = dt + timedelta(hours=UTC_OFFSET) if dt.utcoffset() == timedelta(0) else dt
+    return dt, local
+
+
+def build_projects(repo_commits, repo_private, top=6):
+    """Where the effort goes, last 12 months. Public repos named; all private
+    repos folded into one aggregate bar so the effort shows without leaking names."""
+    pub = sorted([(full.split("/")[-1], c) for full, c in repo_commits.items()
+                  if c > 0 and not repo_private.get(full)], key=lambda x: -x[1])
+    projects = [{"n": n, "c": c, "kind": "public"} for n, c in pub[:top]]
+    other = sum(c for _, c in pub[top:])
+    if other:
+        projects.append({"n": "other public", "c": other, "kind": "other"})
+    priv_total = sum(c for full, c in repo_commits.items() if c > 0 and repo_private.get(full))
+    if priv_total:
+        projects.append({"n": "private work", "c": priv_total, "kind": "private"})
+    projects.sort(key=lambda p: -p["c"])
+    return projects
+
+
+def this_week(week_total, week_blocks, block_counts, seen):
+    """How the last 7 days deviate from the year baseline: volume vs the weekly
+    average, and which block ran most above its usual share."""
+    avg_weekly = seen / 52.0
+    vol = round((week_total - avg_weekly) / avg_weekly * 100) if avg_weekly else 0
+    dev_block, dev_pts = None, 0
+    if week_total:
+        tb = sum(block_counts.values()) or 1
+        base = {label: block_counts.get(label, 0) / tb for label, _ in BLOCKS}
+        wk = {label: week_blocks.get(label, 0) / week_total for label, _ in BLOCKS}
+        dev_block = max(BLOCKS, key=lambda lb: wk[lb[0]] - base[lb[0]])[0]
+        dev_pts = round((wk[dev_block] - base[dev_block]) * 100)
+    return {"commits": week_total, "volDelta": vol, "devBlock": dev_block, "devPts": dev_pts}
 
 
 CAL_Q = """
@@ -217,17 +257,25 @@ def build():
         include_private = bool(PAT)
         matrix = [[0] * 24 for _ in range(7)]
         block_counts = defaultdict(int)
+        week_blocks = defaultdict(int)
         since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
-        seen = 0
-        for full in owner_repos(rtoken, include_private):
+        week_cut = datetime.now(timezone.utc) - timedelta(days=7)
+        seen = week_total = 0
+        repo_commits, repo_private = {}, {}
+        for full, priv in owner_repos(rtoken, include_private):
+            cnt = 0
             for iso in repo_commit_dates(full, rtoken, since):
-                wd, hr = local_hour_weekday(iso)
-                matrix[wd][hr] += 1
+                dt, local = parse_commit(iso)
+                blk = block_of(local.hour)
+                matrix[local.weekday()][local.hour] += 1
+                block_counts[blk] += 1
                 seen += 1
-                for label, hrs in BLOCKS:
-                    if hr in hrs:
-                        block_counts[label] += 1
-                        break
+                cnt += 1
+                if dt >= week_cut:
+                    week_total += 1
+                    week_blocks[blk] += 1
+            repo_commits[full] = cnt
+            repo_private[full] = priv
         if seen:
             mx = max((max(r) for r in matrix), default=0) or 1
             data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
@@ -236,6 +284,8 @@ def build():
                               for label, _ in BLOCKS]
             data["blocks"].sort(key=lambda b: -b["v"])
             data["rhythmScope"] = "all repos" if include_private else "public repos"
+            data["projects"] = build_projects(repo_commits, repo_private)
+            data["thisWeek"] = this_week(week_total, week_blocks, block_counts, seen)
         else:
             print("rhythm: no commits found (set PAT_TOKEN to include private repos)", file=sys.stderr)
     except Exception as ex:
@@ -277,6 +327,13 @@ def build():
         "momentum": (("Momentum trends up across the year. " if trend_up else "Activity stays steady across the year. ")
                      + "<b>Decision:</b> I read cadence over volume, consistency beats heroics."),
     }
+    projs = data.get("projects") or []
+    if projs:
+        total_c = sum(p["c"] for p in projs) or 1
+        topp = projs[0]
+        data["insights"]["proj"] = ("<b>" + topp["n"] + "</b> takes the biggest share of commits ("
+                                    + str(round(topp["c"] / total_c * 100)) + "%). "
+                                    "<b>Decision:</b> I let the busiest project set the week, and shield the rest from it.")
     data["decisions"] = [
         {"obs": "My most active block is <b>" + peak_block + "</b>.",
          "act": "Guard it for hard problems; batch reviews for later."},
