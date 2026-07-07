@@ -21,11 +21,23 @@ jobs:
       - name: Prepare output dir
         run: mkdir -p dist
 
-      # ── The one signature: commit rhythm as a Fourier waveform ───
+      # ── The signature: commit rhythm as a Fourier waveform ───────
       - name: Generate commit-rhythm SVG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/generate-rhythm.py
+
+      # ── The year as terrain: marching-squares contour map ────────
+      - name: Generate contours SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-contours.py
+
+      # ── The year, folded: Hilbert space-filling curve ────────────
+      - name: Generate Hilbert SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-hilbert.py
 
       # ── Analyst-page data snapshot ───────────────────────────────
       - name: Generate data snapshot (data.json)

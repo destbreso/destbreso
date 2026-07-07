@@ -83,8 +83,8 @@ section { margin-top: 40px; }
 
 .rhythm { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
 .rhythm .ylab { font-family: var(--mono); font-size: 10px; color: var(--faint); text-align: right; line-height: 1; }
-.hm { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
-.hm i { aspect-ratio: 1; border-radius: 2px; background: #131a24; }
+.hm { display: grid; grid-template-columns: repeat(52, 1fr); gap: 2px; }
+.hm i { aspect-ratio: 1; border-radius: 1px; background: #131a24; }
 .hm-x { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--faint); margin-top: 6px; padding-left: 34px; }
 
 .marg { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
@@ -113,6 +113,19 @@ section { margin-top: 40px; }
 .dec .obs b { color: var(--ink); }
 .dec .act { display: flex; gap: 8px; font-size: 13.5px; color: var(--ink); padding-top: 10px; border-top: 1px dashed var(--border); }
 .dec .act .a { color: var(--accent); font-family: var(--mono); flex-shrink: 0; }
+
+/* math ∩ computation gallery: the three lenses on a year of commits */
+.sec-lede { color: var(--muted); max-width: 74ch; margin: -4px 0 18px; font-size: 14.5px; }
+.figs { display: flex; flex-direction: column; gap: 16px; }
+.fig { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; align-items: center; }
+.fig-media { min-width: 0; }
+.fig-media img { width: 100%; height: auto; display: block; border-radius: 6px; border: 1px solid var(--border); }
+.fig--square .fig-media { max-width: 320px; margin: 0 auto; }
+.fig figcaption { min-width: 0; }
+.fig .fig-t { font-size: 15.5px; font-weight: 700; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.2px; }
+.fig figcaption p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.66; }
+.fig figcaption b { color: var(--accent); font-weight: 600; }
+@media (max-width: 760px) { .fig { grid-template-columns: 1fr; gap: 14px; } .fig--square .fig-media { max-width: 260px; } }
 
 footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px 16px; font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
 footer a { color: var(--muted); text-decoration: none; }

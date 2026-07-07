@@ -12,7 +12,7 @@
 ### `01` · Building
 
 - **[agentic-lab](https://github.com/destbreso/agentic-lab)**: a platform for autonomous agentic loops and AI workflows. Multi-provider, tool orchestration, real-time dashboard.
-- **[queue-system-simulation](https://github.com/destbreso/queue-system-simulation)**: queueing theory you can play with. Tune parameters live and watch the model behave. Math made visible.
+- **[cv-generator](https://github.com/destbreso/cv-generator)**: an AI-powered, privacy-first resume builder. Local (Ollama) or cloud LLMs tailor a CV to any role, with live pagination and a print-ready layout.
 - **[load-testing-lab](https://github.com/destbreso/load-testing-lab)**: production load testing done properly. k6 + Artillery runners, InfluxDB metrics, Grafana dashboards, a real CLI.
 
 <sub>[all repositories →](https://github.com/destbreso?tab=repositories)</sub>
@@ -26,6 +26,8 @@ I write about algorithms with a mathematician's eye at **[destbreso.com/blog](ht
 <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" width="100%" alt="A year of commits rendered as a waveform and reconstructed through its Fourier harmonics, updated daily" />
 
 <sub>A year of commits, read as a signal. Generated daily from real data.</sub>
+
+The faint bars are the raw weekly commit counts. The bright curve is that signal rebuilt from only its dominant **Fourier harmonics**: the few repeating cycles that explain most of the variation. A strong low harmonic is a slow seasonal swing across the year; the higher ones are the shorter bursts on top. Read the curve as the shape of the year with the noise filtered out. The full breakdown, next to two more views of the same year, lives on [the data page](https://destbreso.github.io/destbreso/).
 
 ---
 

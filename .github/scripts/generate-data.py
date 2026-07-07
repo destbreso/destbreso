@@ -20,15 +20,9 @@ from datetime import datetime, timedelta, timezone
 
 USER = os.environ.get("GH_USER", "destbreso")
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
-UTC_OFFSET = int(os.environ.get("UTC_OFFSET", "-4"))  # Miami
 OUT = os.path.join("dist", "data.json")
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-BLOCKS = [
-    ("morning 06-12", range(6, 12)),
-    ("afternoon 12-17", range(12, 17)),
-    ("evening 17-21", range(17, 21)),
-    ("night 21-06", list(range(21, 24)) + list(range(0, 6))),
-]
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def _req(url, data=None, headers=None):
@@ -77,11 +71,9 @@ def window(days_ago_from, days_ago_to):
 def calendar_days(frm, to):
     d = gql(CAL_Q, {"login": USER, "from": frm, "to": to})
     cc = d["user"]["contributionsCollection"]
-    days = []
-    for w in cc["contributionCalendar"]["weeks"]:
-        for day in w["contributionDays"]:
-            days.append((day["date"], day["contributionCount"]))
-    return cc["totalCommitContributions"], days
+    weeks = cc["contributionCalendar"]["weeks"]
+    days = [(day["date"], day["contributionCount"]) for w in weeks for day in w["contributionDays"]]
+    return cc["totalCommitContributions"], days, weeks
 
 
 def longest_streak(days):
@@ -113,14 +105,14 @@ def build():
 
     # ---- contributions (this year + prior year for deltas) ----
     frm, to = window(365, 0)
-    commits, days = calendar_days(frm, to)
+    commits, days, weeks = calendar_days(frm, to)
     active = sum(1 for _, c in days if c > 0)
     streak = longest_streak(days)
     mvals, mlabels = monthly(days)
 
     try:
         pfrm, pto = window(730, 365)
-        pcommits, pdays = calendar_days(pfrm, pto)
+        pcommits, pdays, _ = calendar_days(pfrm, pto)
         pactive = sum(1 for _, c in pdays if c > 0)
     except Exception:
         pcommits, pactive = 0, 0
@@ -151,30 +143,27 @@ def build():
         peak_i = mvals.index(max(mvals))
         data["momentumAnnot"] = {"index": peak_i, "text": "busiest month"}
 
-    # ---- rhythm + blocks from recent push events (~90 days) ----
-    matrix = [[0] * 24 for _ in range(7)]
-    block_counts = defaultdict(int)
+    # ---- rhythm (weekday x week) + weekday share, from the contribution
+    #      calendar. This counts EVERY commit, public and private alike, so the
+    #      heatmap is never empty for someone who works mostly in private repos.
+    #      Hour-of-day is deliberately not shown: it is only available from the
+    #      public Events API, which misses private work and would read as false.
     try:
-        events = []
-        for p in range(1, 4):
-            events += rest("/users/" + USER + "/events?", page=p)
-        for e in events:
-            if e.get("type") != "PushEvent":
-                continue
-            n = e.get("payload", {}).get("size", 0) or 0
-            t = datetime.strptime(e["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-            t = t + timedelta(hours=UTC_OFFSET)
-            matrix[t.weekday()][t.hour] += n
-            for label, hrs in BLOCKS:
-                if t.hour in hrs:
-                    block_counts[label] += n
-                    break
+        w52 = weeks[-52:]
+        matrix = [[0.0] * len(w52) for _ in range(7)]
+        wd_total = [0] * 7
+        for col, wk in enumerate(w52):
+            for day in wk["contributionDays"]:
+                wd = datetime.strptime(day["date"], "%Y-%m-%d").weekday()  # 0=Mon
+                c = day["contributionCount"]
+                matrix[wd][col] = c
+                wd_total[wd] += c
         mx = max((max(r) for r in matrix), default=0) or 1
         data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
-        total_b = sum(block_counts.values()) or 1
-        data["blocks"] = [{"l": label, "v": round(block_counts.get(label, 0) / total_b * 100)}
-                          for label, _ in BLOCKS]
-        data["blocks"].sort(key=lambda b: -b["v"])
+        tot = sum(wd_total) or 1
+        # keep Mon..Sun order so the bars read as a week profile, not a ranking
+        data["blocks"] = [{"l": WEEKDAYS[i], "v": round(wd_total[i] / tot * 100)} for i in range(7)]
+        data["peakDay"] = WEEKDAYS[wd_total.index(max(wd_total))] if tot else "weekdays"
     except Exception as ex:
         print("rhythm skipped:", ex, file=sys.stderr)
 
@@ -199,15 +188,15 @@ def build():
         print("langs skipped:", ex, file=sys.stderr)
 
     # ---- narrative, composed from the numbers above (true by construction) ----
-    peak_block = (data.get("blocks") or [{"l": "the day"}])[0]["l"]
+    peak_day = data.get("peakDay", "weekdays")
     langs = data.get("langs") or []
     top_lang = langs[0]["n"] if langs else "TypeScript"
     has_py = any(l["n"] == "Python" for l in langs)
     trend_up = len(mvals) >= 6 and sum(mvals[-3:]) > sum(mvals[:3])
 
     data["insights"] = {
-        "rhythm": ("Most commits land in the <b>" + peak_block + "</b> block. "
-                   "<b>Decision:</b> I protect that window for focused work and keep meetings out."),
+        "rhythm": ("Most commits land on <b>" + peak_day + "</b>. "
+                   "<b>Decision:</b> I protect that day for deep work and keep meetings off it."),
         "langs": ("<b>" + top_lang + "</b> leads the stack"
                   + (", with <b>Python</b> close behind for the analytical work" if has_py else "")
                   + ". <b>Decision:</b> I choose the language by the problem, not by habit."),
@@ -215,7 +204,7 @@ def build():
                      + "<b>Decision:</b> I read cadence over volume, consistency beats heroics."),
     }
     data["decisions"] = [
-        {"obs": "My most active block is <b>" + peak_block + "</b>.",
+        {"obs": "My most active day is <b>" + peak_day + "</b>.",
          "act": "Guard it for hard problems; batch reviews for later."},
         {"obs": "Longest streak this year: <b>" + str(streak) + " days</b>.",
          "act": "Trust consistency over crunch; ship small and often."},

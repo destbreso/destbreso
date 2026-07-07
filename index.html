@@ -34,15 +34,15 @@
       </section>
 
       <section>
-        <div class="sec-head"><span class="idx">02</span><h2>When the work happens</h2><span class="hint">commits · day &#215; hour</span></div>
+        <div class="sec-head"><span class="idx">02</span><h2>When the work happens</h2><span class="hint">commits · weekday &#215; week</span></div>
         <div class="grid2">
           <div class="card">
             <div class="rhythm" id="rhythm"></div>
-            <div class="hm-x"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+            <div class="hm-x"><span>a year ago</span><span>this week</span></div>
             <div class="insight" id="insight-rhythm"></div>
           </div>
           <div class="card">
-            <div class="card-kicker">share of commits by block</div>
+            <div class="card-kicker">share of commits by weekday</div>
             <div class="marg" id="marg"></div>
           </div>
         </div>
@@ -66,7 +66,35 @@
       </section>
 
       <section>
-        <div class="sec-head"><span class="idx">05</span><h2>What the data tells me to do</h2><span class="hint">observation &rarr; decision</span></div>
+        <div class="sec-head"><span class="idx">05</span><h2>The same year, read three ways</h2><span class="hint">math &cap; computation</span></div>
+        <p class="sec-lede">One year of commits, put through three lenses a mathematician reaches for. Each is generated daily from the real contribution history, in the same blueprint language as the rest of the page.</p>
+        <div class="figs">
+          <figure class="fig">
+            <div class="fig-media"><img loading="lazy" alt="A year of weekly commit counts reconstructed from its dominant Fourier harmonics as a living waveform" src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" onerror="this.closest('.fig').style.display='none'" /></div>
+            <figcaption>
+              <div class="fig-t">Commit rhythm, as a spectrum</div>
+              <p>Each faint bar is one week's commit count: the raw signal. The bright curve is that same signal rebuilt from only its strongest <b>Fourier harmonics</b>, the few repeating cycles that explain most of the variation. A dominant low harmonic is a slow seasonal swing across the year; the higher ones are the shorter bursts riding on top. Read the curve as the shape of the year with the noise filtered out. The light pulse only traces it in time.</p>
+            </figcaption>
+          </figure>
+          <figure class="fig">
+            <div class="fig-media"><img loading="lazy" alt="The year as a height field with contour lines traced by the marching squares algorithm" src="https://raw.githubusercontent.com/destbreso/destbreso/output/contours.svg" onerror="this.closest('.fig').style.display='none'" /></div>
+            <figcaption>
+              <div class="fig-t">The year as terrain</div>
+              <p>The calendar is a height field, 52 weeks by 7 days, taller where the days were busier. <b>Marching squares</b>, the classic isoline algorithm, traces its level sets, so busy stretches close into loops and quiet ones stay open, the way contour lines wrap a hill on a topographic map. The highlight sweeps up through the elevations, low to high.</p>
+            </figcaption>
+          </figure>
+          <figure class="fig fig--square">
+            <div class="fig-media"><img loading="lazy" alt="The 365 days of the year laid in order along a Hilbert space-filling curve" src="https://raw.githubusercontent.com/destbreso/destbreso/output/hilbert.svg" onerror="this.closest('.fig').style.display='none'" /></div>
+            <figcaption>
+              <div class="fig-t">The year, folded</div>
+              <p>A <b>Hilbert curve</b> is a single line that visits every cell of a grid while keeping points that are close in time close in space. The 365 days are laid along it in order, so the whole line is the year folded onto itself. The brightest points are the busiest days, and the pulse follows the traversal from the first day to the last.</p>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-head"><span class="idx">06</span><h2>What the data tells me to do</h2><span class="hint">observation &rarr; decision</span></div>
         <div class="decisions" id="decisions"></div>
       </section>
 
