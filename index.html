@@ -70,17 +70,11 @@
         <p class="sec-lede">One year of commits, put through three lenses a mathematician reaches for. Each is generated daily from the real contribution history, in the same blueprint language as the rest of the page.</p>
         <div class="figs">
           <figure class="fig">
-            <div class="fig-media"><img loading="lazy" alt="A year of weekly commit counts reconstructed from its dominant Fourier harmonics as a living waveform" src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" onerror="this.closest('.fig').style.display='none'" /></div>
+            <div class="fig-media"><img loading="lazy" alt="A year of commits as one signal: a Fourier waveform above the same year folded onto a Hilbert curve, their pulses in sync" src="https://raw.githubusercontent.com/destbreso/destbreso/output/signal.svg" onerror="this.closest('.fig').style.display='none'" /></div>
             <figcaption>
-              <div class="fig-t">Commit rhythm, as a spectrum</div>
-              <p>Each faint bar is one week's commit count: the raw signal. The bright curve is that same signal rebuilt from only its strongest <b>Fourier harmonics</b>, the few repeating cycles that explain most of the variation. A dominant low harmonic is a slow seasonal swing across the year; the higher ones are the shorter bursts riding on top. Read the curve as the shape of the year with the noise filtered out. The light pulse only traces it in time.</p>
-            </figcaption>
-          </figure>
-          <figure class="fig fig--square">
-            <div class="fig-media"><img loading="lazy" alt="The 365 days of the year laid in order along a Hilbert space-filling curve" src="https://raw.githubusercontent.com/destbreso/destbreso/output/hilbert.svg" onerror="this.closest('.fig').style.display='none'" /></div>
-            <figcaption>
-              <div class="fig-t">The same year, folded</div>
-              <p>The same signal, in space instead of time. A <b>Hilbert curve</b> is a single line that visits every cell of a grid while keeping points that are close in time close in space, so its pulse runs in step with the waveform above. The 365 days are laid along it in order: the whole line is the year folded onto itself, brightest where the days were busiest.</p>
+              <div class="fig-t">The year, as one signal</div>
+              <p>Two readings of the same data on one clock, so the two pulses move together. <b>Above</b>, the weekly commit counts (the faint bars) rebuilt from only their strongest <b>Fourier harmonics</b>: the few repeating cycles that explain most of the variation. <b>Below</b>, the same year folded onto a <b>Hilbert curve</b>, a single line that keeps days close in time close in space, brightest where the work was busiest. Time and space, one lens.</p>
+              <p class="fig-note">Reading the harmonics as habits: the low ones are slow seasons (a strong low harmonic means output swings across the year, busy stretches and lulls, project cycles or time off); the high ones are short bursts (crunch weeks, sprint spikes). Energy in the low harmonics means a smooth curve and a steady, cadenced routine; energy in the high ones means a jagged curve and more reactive, deadline-driven work. It suggests habits, it does not prove them: weekly counts are a proxy, and 52 weeks resolve only so much.</p>
             </figcaption>
           </figure>
           <figure class="fig">

@@ -22,7 +22,7 @@ OUT = os.path.join("dist", "contours.svg")
 BG = "#0b0e14"; GRID = "#141b26"; ACC = "#4dd4e0"
 W, H = 880, 220
 PAD = 20
-LEVELS = 6
+LEVELS = 8  # a touch denser: more contour lines
 UP = 4  # bilinear upsample factor
 
 CAL_Q = """

@@ -21,23 +21,19 @@ jobs:
       - name: Prepare output dir
         run: mkdir -p dist
 
-      # ── The signature: commit rhythm as a Fourier waveform ───────
-      - name: Generate commit-rhythm SVG
+      # ── The signature: the year as one signal (Fourier waveform +
+      #    the same year folded onto a Hilbert curve, on ONE shared
+      #    timeline so both pulses stay perfectly in sync) ───────────
+      - name: Generate signal SVG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/generate-rhythm.py
+        run: python .github/scripts/generate-signal.py
 
-      # ── The year as terrain: marching-squares contour map ────────
+      # ── The year as a landscape: marching-squares contour map ────
       - name: Generate contours SVG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/generate-contours.py
-
-      # ── The year, folded: Hilbert space-filling curve ────────────
-      - name: Generate Hilbert SVG
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python .github/scripts/generate-hilbert.py
 
       # ── Analyst-page data snapshot ───────────────────────────────
       # PAT_TOKEN is optional: set it (a PAT with repo scope) to include PRIVATE

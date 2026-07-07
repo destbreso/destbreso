@@ -23,17 +23,13 @@ I write about algorithms with a mathematician's eye at **[destbreso.com/blog](ht
 
 ### `03` · One year, three readings
 
-The same year of commits, put through three lenses that give three dimensions of one dataset. All generated daily from real data.
+The same year of commits, read three ways that give three dimensions of one dataset. All generated daily from real data.
 
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" width="100%" alt="A year of weekly commit counts reconstructed through its Fourier harmonics, updated daily" />
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/signal.svg" width="100%" alt="A year of commits as one signal: a Fourier waveform above the same year folded onto a Hilbert curve, their pulses in sync" />
 
-<sub>**As a spectrum.** The faint bars are the raw weekly commit counts. The bright curve is that signal rebuilt from only its dominant **Fourier harmonics**: the few repeating cycles that explain most of the variation. A strong low harmonic is a slow seasonal swing; the higher ones are the shorter bursts on top.</sub>
+<sub>**As a spectrum, and folded into space** (one clock, so the two pulses move together). Above: the weekly commit counts rebuilt from only their dominant **Fourier harmonics**, the few repeating cycles that explain most of the variation. Below: the same year folded onto a **Hilbert curve**, a single line that keeps days close in time close in space, brightest where the work was busiest.</sub>
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/hilbert.svg" width="380" alt="The 365 days of the year laid in order along a Hilbert space-filling curve" />
-</div>
-
-<sub>**Folded into space.** The same signal, in space instead of time. A **Hilbert curve** threads every cell of a grid on one continuous line while keeping days that are close in time close in space, so its pulse runs in step with the waveform above. The 365 days lie along it in order, brightest where the work was busiest.</sub>
+<sub>Reading the harmonics as habits: the low ones are slow seasons (output swinging across the year, busy stretches and lulls); the high ones are short bursts (crunch weeks). Energy in the low harmonics is a smooth curve and a steady routine; energy in the high ones is a jagged curve and reactive, deadline-driven work. It suggests habits, it does not prove them.</sub>
 
 <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/contours.svg" width="100%" alt="The year as a height field with contour lines traced by marching squares" />
 
