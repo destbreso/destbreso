@@ -21,11 +21,11 @@
 
 I write about algorithms with a mathematician's eye at **[destbreso.com/blog](https://destbreso.com/blog)**. The through-line is *Algorithms Under a Handicap*: methods that have to work with less, less memory, less time, or no view of the future.
 
-### `03` · Contribution art
+### `03` · Rhythm
 
-<sub>The one visual that is actually mine: generated daily by a GitHub Action from real commits.</sub>
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" width="100%" alt="A year of commits rendered as a waveform and reconstructed through its Fourier harmonics, updated daily" />
 
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/matrix-rain.svg" width="100%" alt="Contribution graph rendered as falling code, generated daily from real commits" />
+<sub>A year of commits, read as a signal. Generated daily from real data.</sub>
 
 ---
 

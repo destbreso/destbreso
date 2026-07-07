@@ -1,0 +1,43 @@
+name: Generate Profile
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # every day at midnight
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Prepare output dir
+        run: mkdir -p dist
+
+      # ── The one signature: commit rhythm as a Fourier waveform ───
+      - name: Generate commit-rhythm SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-rhythm.py
+
+      # ── Analyst-page data snapshot ───────────────────────────────
+      - name: Generate data snapshot (data.json)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/generate-data.py
+
+      # ── Push generated artifacts to the output branch ────────────
+      - name: Deploy to output branch
+        uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
