@@ -151,10 +151,25 @@ def edge_point(edge, i, j, tl, tr, br, bl, t, cross):
     return (i + 1, cross(tr, br, j, j + 1, t))  # "R"
 
 
+def load_grid():
+    # Prefer the private-inclusive weekday x week grid from generate-data.py; fall
+    # back to the public contribution calendar if it is not there.
+    p = os.path.join("dist", "series.json")
+    if os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                s = json.load(f)
+            if s.get("grid"):
+                return s["grid"]
+        except Exception:
+            pass
+    return None
+
+
 def main():
     os.makedirs("dist", exist_ok=True)
     try:
-        svg = build_svg(field())
+        svg = build_svg(load_grid() or field())
     except Exception as ex:
         print("contours generation failed:", ex, file=sys.stderr)
         return 0

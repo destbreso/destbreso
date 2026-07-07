@@ -16,7 +16,7 @@ import sys
 import urllib.request
 import urllib.error
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 
 USER = os.environ.get("GH_USER", "destbreso")
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -159,6 +159,50 @@ def this_week(week_total, week_blocks, block_counts, seen):
     return {"commits": week_total, "volDelta": vol, "devBlock": dev_block, "devPts": dev_pts}
 
 
+def build_series(daily):
+    """Dense last-52-weeks daily totals aligned to Monday, plus weekly totals and
+    the 7x52 weekday grid (all private-inclusive) for the SVG generators, and the
+    monthly public/private split for momentum. `daily` maps date -> [pub, priv]."""
+    end = datetime.now(timezone.utc).date()
+    start = end - timedelta(days=7 * 52 - 1)
+    start -= timedelta(days=start.weekday())  # back up to Monday so weekday rows align
+    weekly = [0] * 52
+    daily_list = []
+    grid = [[0] * 52 for _ in range(7)]
+    m_pub, m_priv = defaultdict(int), defaultdict(int)
+    for i in range(7 * 52):
+        d = start + timedelta(days=i)
+        pub, priv = daily.get(d.isoformat(), [0, 0])
+        cnt = pub + priv
+        daily_list.append(cnt)
+        wk = i // 7
+        weekly[wk] += cnt
+        grid[d.weekday()][wk] = cnt
+        mkk = d.isoformat()[:7]
+        m_pub[mkk] += pub
+        m_priv[mkk] += priv
+    return weekly, daily_list, grid, m_pub, m_priv
+
+
+def agg_streak(daily):
+    """Longest run of consecutive calendar days with at least one commit."""
+    active = set(d for d, v in daily.items() if (v[0] + v[1]) > 0)
+    if not active:
+        return 0
+    ds = sorted(active)
+    d0, d1 = date.fromisoformat(ds[0]), date.fromisoformat(ds[-1])
+    best = cur = 0
+    d = d0
+    while d <= d1:
+        if d.isoformat() in active:
+            cur += 1
+            best = max(best, cur)
+        else:
+            cur = 0
+        d += timedelta(days=1)
+    return best
+
+
 CAL_Q = """
 query($login:String!, $from:DateTime!, $to:DateTime!){
   user(login:$login){
@@ -222,13 +266,6 @@ def build():
     active = sum(1 for _, c in days if c > 0)
     streak = longest_streak(days)
     mkeys, mvals, mlabels = monthly(days)
-    # public-only monthly (forced GITHUB_TOKEN) so momentum can stack public vs private
-    try:
-        _, pub_days = calendar_days(frm, to, token=TOKEN)
-        pubm = monthly_on(pub_days, mkeys)
-        mvals_public = [min(pubm[i], mvals[i]) for i in range(len(mkeys))]
-    except Exception:
-        mvals_public = list(mvals)
 
     try:
         pfrm, pto = window(730, 365)
@@ -258,7 +295,7 @@ def build():
         {"label": "public repos", "val": repos_total, "delta": 0, "spark": mvals},
     ]
     data["momentum"] = mvals
-    data["momentumPublic"] = mvals_public
+    data["momentumPublic"] = mvals  # calendar fallback is all-public; the aggregation below overrides with the real split
     data["momentumLabels"] = mlabels
     if mvals:
         peak_i = mvals.index(max(mvals))
@@ -277,6 +314,7 @@ def build():
         block_pub = defaultdict(int)
         block_priv = defaultdict(int)
         week_blocks = defaultdict(int)
+        daily = defaultdict(lambda: [0, 0])  # date -> [public, private] commit counts
         since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
         week_cut = datetime.now(timezone.utc) - timedelta(days=7)
         seen = week_total = 0
@@ -289,6 +327,7 @@ def build():
                 matrix[local.weekday()][local.hour] += 1
                 block_counts[blk] += 1
                 (block_priv if priv else block_pub)[blk] += 1
+                daily[local.date().isoformat()][1 if priv else 0] += 1
                 seen += 1
                 cnt += 1
                 if dt >= week_cut:
@@ -309,6 +348,26 @@ def build():
             data["rhythmScope"] = "all repos" if include_private else "public repos"
             data["projects"] = build_projects(repo_commits, repo_private)
             data["thisWeek"] = this_week(week_total, week_blocks, block_counts, seen)
+            # Rebuild momentum + the commit KPIs from the aggregation so every commit
+            # view agrees (private included, unlike the contribution calendar), and write
+            # the daily series that the signal + contours SVG generators consume.
+            weekly, daily_list, grid, m_pub, m_priv = build_series(daily)
+            mk = sorted(set(list(m_pub.keys()) + list(m_priv.keys())))[-12:]
+            data["momentum"] = [m_pub[k] + m_priv[k] for k in mk]
+            data["momentumPublic"] = [m_pub[k] for k in mk]
+            data["momentumLabels"] = [MONTHS[int(k[5:7]) - 1] for k in mk]
+            if data["momentum"]:
+                pi = data["momentum"].index(max(data["momentum"]))
+                data["momentumAnnot"] = {"index": pi, "text": "busiest month"}
+            active_days = sum(1 for v in daily.values() if (v[0] + v[1]) > 0)
+            for i, val in ((0, seen), (1, active_days), (2, str(agg_streak(daily)) + "d")):
+                data["kpis"][i]["val"] = val
+                data["kpis"][i]["delta"] = None
+                data["kpis"][i]["spark"] = data["momentum"]
+            data["kpis"][3]["delta"] = None  # public-repos count has no meaningful YoY here
+            data["kpis"][3]["spark"] = data["momentum"]
+            with open(os.path.join("dist", "series.json"), "w", encoding="utf-8") as sf:
+                json.dump({"weekly": weekly, "daily": daily_list, "grid": grid}, sf, separators=(",", ":"))
         else:
             print("rhythm: no commits found (set PAT_TOKEN to include private repos)", file=sys.stderr)
     except Exception as ex:

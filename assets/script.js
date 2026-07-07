@@ -112,13 +112,14 @@ function render(D) {
 
   // KPIs
   $("#kpis").innerHTML = D.kpis.map(function (k) {
+    var hasD = k.delta != null;
     var cls = k.delta > 0 ? "up" : k.delta < 0 ? "down" : "flat";
     var sym = k.delta > 0 ? "↗" : k.delta < 0 ? "↘" : "→";
-    var deltaHtml = k.delta === 0 ? "steady" : sym + " " + Math.abs(k.delta) + "% YoY";
+    var deltaHtml = !hasD ? "" : (k.delta === 0 ? "steady" : sym + " " + Math.abs(k.delta) + "% YoY");
     return '<div class="kpi">' + spark(k.spark || [], 58, 26) +
       '<div class="label">' + k.label + "</div>" +
       '<div class="val tabnum">' + (typeof k.val === "number" ? k.val.toLocaleString("en-US") : k.val) + "</div>" +
-      '<div class="delta ' + cls + '">' + deltaHtml + "</div></div>";
+      (hasD ? '<div class="delta ' + cls + '">' + deltaHtml + "</div>" : "") + "</div>";
   }).join("");
 
   // rhythm heatmap (weekday rows x week cols; column count is data-driven)

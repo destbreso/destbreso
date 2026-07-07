@@ -214,10 +214,26 @@ def build(weekly, daily):
     return "".join(p)
 
 
+def load_series():
+    # Prefer the private-inclusive series written by generate-data.py; fall back
+    # to the public contribution calendar if it is not there.
+    p = os.path.join("dist", "series.json")
+    if os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                s = json.load(f)
+            if s.get("weekly") and s.get("daily"):
+                return s["weekly"], s["daily"]
+        except Exception:
+            pass
+    return None
+
+
 def main():
     os.makedirs("dist", exist_ok=True)
     try:
-        weekly, daily = weekly_daily()
+        series = load_series()
+        weekly, daily = series if series else weekly_daily()
         svg = build(weekly, daily)
     except Exception as ex:
         print("signal generation failed:", ex, file=sys.stderr)

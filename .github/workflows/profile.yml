@@ -21,6 +21,17 @@ jobs:
       - name: Prepare output dir
         run: mkdir -p dist
 
+      # ── Analyst-page data snapshot. Runs FIRST because it also writes
+      #    dist/series.json, the private-inclusive daily commit series the
+      #    two SVG generators below consume so every commit view agrees.
+      #    PAT_TOKEN is optional: set it (a PAT with repo scope) to include
+      #    PRIVATE repos everywhere. Without it, everything uses public repos.
+      - name: Generate data snapshot (data.json + series.json)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: python .github/scripts/generate-data.py
+
       # ── The signature: the year as one signal (Fourier waveform +
       #    the same year folded onto a Hilbert curve, on ONE shared
       #    timeline so both pulses stay perfectly in sync) ───────────
@@ -36,15 +47,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-contours.py
-
-      # ── Analyst-page data snapshot ───────────────────────────────
-      # PAT_TOKEN is optional: set it (a PAT with repo scope) to include PRIVATE
-      # repos in the day x hour rhythm. Without it, the rhythm uses public repos.
-      - name: Generate data snapshot (data.json)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: python .github/scripts/generate-data.py
 
       # ── Push generated artifacts to the output branch ────────────
       - name: Deploy to output branch
