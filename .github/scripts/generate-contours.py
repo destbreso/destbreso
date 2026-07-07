@@ -124,7 +124,7 @@ def build_svg(grid):
     p.append('<rect width="%d" height="%d" fill="%s"/>' % (W, H, BG))
     p.append('<rect width="%d" height="%d" fill="url(#g)" opacity="0.5"/>' % (W, H))
     p.append('<rect x="0.5" y="0.5" width="%d" height="%d" fill="none" stroke="#1b2330"/>' % (W - 1, H - 1))
-    dur = 9
+    dur = 12
     for li in range(LEVELS):
         d = " ".join(level_paths[li])
         if not d:

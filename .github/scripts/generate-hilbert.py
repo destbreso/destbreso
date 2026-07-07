@@ -77,18 +77,23 @@ def build_svg(counts):
         pts.append((OX + gx * cell, OY + gy * cell))
     curve = "M" + " L".join("%.1f %.1f" % p for p in pts)
 
-    # place each day at its proportional position along the curve; keep the busiest
+    # place EVERY active day at its proportional position along the curve, sized
+    # and lit by that day's activity, so the whole year reads, not just a few peaks
     m = len(counts)
     dots = []
     if m:
         cmax = max(counts) or 1
-        ranked = sorted(range(m), key=lambda i: -counts[i])[:44]
-        for i in ranked:
+        for i in range(m):
+            c = counts[i]
+            if c <= 0:
+                continue
             pos = round(i * (len(pts) - 1) / max(1, m - 1))
             x, y = pts[pos]
-            r = 1.4 + (counts[i] / cmax) * 3.2
-            dots.append('<circle cx="%.1f" cy="%.1f" r="%.2f" fill="%s" opacity="0.9" filter="url(#glow)"/>'
-                        % (x, y, r, ACC))
+            frac = c / cmax
+            r = 1.2 + frac * 3.4
+            op = 0.4 + frac * 0.55
+            dots.append('<circle cx="%.1f" cy="%.1f" r="%.2f" fill="%s" opacity="%.2f" filter="url(#glow)"/>'
+                        % (x, y, r, ACC, op))
 
     p = []
     p.append('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
@@ -105,16 +110,16 @@ def build_svg(counts):
     p.append('<rect width="%d" height="%d" fill="url(#g)" opacity="0.5"/>' % (W, H))
     p.append('<rect x="0.5" y="0.5" width="%d" height="%d" fill="none" stroke="#1b2330"/>' % (W - 1, H - 1))
     # faint full curve + the moving pen path
-    p.append('<path id="hil" d="%s" fill="none" stroke="%s" stroke-width="1.1" '
-             'stroke-linecap="round" stroke-linejoin="round" opacity="0.28"/>' % (curve, ACC))
+    p.append('<path id="hil" d="%s" fill="none" stroke="%s" stroke-width="1.2" '
+             'stroke-linecap="round" stroke-linejoin="round" opacity="0.34"/>' % (curve, ACC))
     p.extend(dots)
     # traveling pulse along the traversal (time)
     p.append('<path d="%s" fill="none" stroke="%s" stroke-width="1.8" stroke-linecap="round" '
              'pathLength="1000" stroke-dasharray="30 1000" opacity="0.95" filter="url(#glow)">'
-             '<animate attributeName="stroke-dashoffset" values="1030;-30" dur="9s" '
+             '<animate attributeName="stroke-dashoffset" values="1030;-30" dur="12s" '
              'repeatCount="indefinite" calcMode="linear"/></path>' % (curve, ACC))
     p.append('<circle r="2.6" fill="#eafcff" filter="url(#glow)">'
-             '<animateMotion dur="9s" repeatCount="indefinite"><mpath xlink:href="#hil"/></animateMotion></circle>')
+             '<animateMotion dur="12s" repeatCount="indefinite"><mpath xlink:href="#hil"/></animateMotion></circle>')
     p.append('</svg>')
     return "".join(p)
 

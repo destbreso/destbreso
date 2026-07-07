@@ -20,9 +20,16 @@ from datetime import datetime, timedelta, timezone
 
 USER = os.environ.get("GH_USER", "destbreso")
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
+PAT = os.environ.get("PAT_TOKEN", "")  # optional PAT with repo scope: unlocks PRIVATE repos for the rhythm
+UTC_OFFSET = int(os.environ.get("UTC_OFFSET", "-4"))  # Miami; used only when a commit date is normalized to UTC
 OUT = os.path.join("dist", "data.json")
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+BLOCKS = [
+    ("morning 06-12", range(6, 12)),
+    ("afternoon 12-17", range(12, 17)),
+    ("evening 17-21", range(17, 21)),
+    ("night 21-06", list(range(21, 24)) + list(range(0, 6))),
+]
 
 
 def _req(url, data=None, headers=None):
@@ -52,6 +59,63 @@ def rest(path, page=None):
     return d
 
 
+def rest_tok(path, token, page=None):
+    """Same as rest(), but with an explicit token (lets the rhythm use a PAT)."""
+    url = "https://api.github.com" + path
+    if page:
+        url += ("&" if "?" in path else "?") + "per_page=100&page=" + str(page)
+    req = urllib.request.Request(url, headers={
+        "Authorization": "Bearer " + token, "User-Agent": USER + "-signal",
+        "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+
+def owner_repos(token, include_private):
+    """Owned, non-fork repos. include_private uses /user/repos (needs a PAT)."""
+    path = ("/user/repos?affiliation=owner&sort=pushed" if include_private
+            else "/users/" + USER + "/repos?type=owner&sort=pushed")
+    names = []
+    for page in range(1, 4):  # up to 300 repos, most-recently-pushed first
+        batch = rest_tok(path, token, page)
+        if not batch:
+            break
+        names += [r["full_name"] for r in batch if not r.get("fork")]
+        if len(batch) < 100:
+            break
+    return names
+
+
+def repo_commit_dates(full, token, since):
+    """Yield author-date strings for the user's commits in one repo since `since`."""
+    for page in range(1, 6):  # cap ~500 commits/repo so a busy repo cannot run away
+        path = "/repos/%s/commits?author=%s&since=%s" % (full, USER, since)
+        try:
+            batch = rest_tok(path, token, page)
+        except Exception:
+            return  # empty repo (409), no access, etc.: skip this repo
+        if not batch:
+            return
+        for c in batch:
+            try:
+                yield c["commit"]["author"]["date"]
+            except Exception:
+                continue
+        if len(batch) < 100:
+            return
+
+
+def local_hour_weekday(iso):
+    """(weekday, hour) in the author's local time. GitHub preserves the commit's
+    authored offset; when it is normalized to UTC (Z / +00:00, which Miami never
+    is) we shift by UTC_OFFSET so a late-night commit reads as late night."""
+    dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    off = dt.utcoffset()
+    if off is None or off == timedelta(0):
+        dt = dt + timedelta(hours=UTC_OFFSET)
+    return dt.weekday(), dt.hour
+
+
 CAL_Q = """
 query($login:String!, $from:DateTime!, $to:DateTime!){
   user(login:$login){
@@ -71,9 +135,9 @@ def window(days_ago_from, days_ago_to):
 def calendar_days(frm, to):
     d = gql(CAL_Q, {"login": USER, "from": frm, "to": to})
     cc = d["user"]["contributionsCollection"]
-    weeks = cc["contributionCalendar"]["weeks"]
-    days = [(day["date"], day["contributionCount"]) for w in weeks for day in w["contributionDays"]]
-    return cc["totalCommitContributions"], days, weeks
+    days = [(day["date"], day["contributionCount"])
+            for w in cc["contributionCalendar"]["weeks"] for day in w["contributionDays"]]
+    return cc["totalCommitContributions"], days
 
 
 def longest_streak(days):
@@ -105,14 +169,14 @@ def build():
 
     # ---- contributions (this year + prior year for deltas) ----
     frm, to = window(365, 0)
-    commits, days, weeks = calendar_days(frm, to)
+    commits, days = calendar_days(frm, to)
     active = sum(1 for _, c in days if c > 0)
     streak = longest_streak(days)
     mvals, mlabels = monthly(days)
 
     try:
         pfrm, pto = window(730, 365)
-        pcommits, pdays, _ = calendar_days(pfrm, pto)
+        pcommits, pdays = calendar_days(pfrm, pto)
         pactive = sum(1 for _, c in pdays if c > 0)
     except Exception:
         pcommits, pactive = 0, 0
@@ -143,27 +207,37 @@ def build():
         peak_i = mvals.index(max(mvals))
         data["momentumAnnot"] = {"index": peak_i, "text": "busiest month"}
 
-    # ---- rhythm (weekday x week) + weekday share, from the contribution
-    #      calendar. This counts EVERY commit, public and private alike, so the
-    #      heatmap is never empty for someone who works mostly in private repos.
-    #      Hour-of-day is deliberately not shown: it is only available from the
-    #      public Events API, which misses private work and would read as false.
+    # ---- rhythm (weekday x hour) + blocks, from real commit timestamps ----
+    # The contribution calendar has no hour-of-day, and the public Events API
+    # misses private-repo work (that is why this panel was empty). So aggregate
+    # actual commit author timestamps across the owner's repos. A PAT with repo
+    # scope (env PAT_TOKEN) includes PRIVATE repos; without it, public repos only.
     try:
-        w52 = weeks[-52:]
-        matrix = [[0.0] * len(w52) for _ in range(7)]
-        wd_total = [0] * 7
-        for col, wk in enumerate(w52):
-            for day in wk["contributionDays"]:
-                wd = datetime.strptime(day["date"], "%Y-%m-%d").weekday()  # 0=Mon
-                c = day["contributionCount"]
-                matrix[wd][col] = c
-                wd_total[wd] += c
-        mx = max((max(r) for r in matrix), default=0) or 1
-        data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
-        tot = sum(wd_total) or 1
-        # keep Mon..Sun order so the bars read as a week profile, not a ranking
-        data["blocks"] = [{"l": WEEKDAYS[i], "v": round(wd_total[i] / tot * 100)} for i in range(7)]
-        data["peakDay"] = WEEKDAYS[wd_total.index(max(wd_total))] if tot else "weekdays"
+        rtoken = PAT or TOKEN
+        include_private = bool(PAT)
+        matrix = [[0] * 24 for _ in range(7)]
+        block_counts = defaultdict(int)
+        since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+        seen = 0
+        for full in owner_repos(rtoken, include_private):
+            for iso in repo_commit_dates(full, rtoken, since):
+                wd, hr = local_hour_weekday(iso)
+                matrix[wd][hr] += 1
+                seen += 1
+                for label, hrs in BLOCKS:
+                    if hr in hrs:
+                        block_counts[label] += 1
+                        break
+        if seen:
+            mx = max((max(r) for r in matrix), default=0) or 1
+            data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
+            total_b = sum(block_counts.values()) or 1
+            data["blocks"] = [{"l": label, "v": round(block_counts.get(label, 0) / total_b * 100)}
+                              for label, _ in BLOCKS]
+            data["blocks"].sort(key=lambda b: -b["v"])
+            data["rhythmScope"] = "all repos" if include_private else "public repos"
+        else:
+            print("rhythm: no commits found (set PAT_TOKEN to include private repos)", file=sys.stderr)
     except Exception as ex:
         print("rhythm skipped:", ex, file=sys.stderr)
 
@@ -188,15 +262,15 @@ def build():
         print("langs skipped:", ex, file=sys.stderr)
 
     # ---- narrative, composed from the numbers above (true by construction) ----
-    peak_day = data.get("peakDay", "weekdays")
+    peak_block = (data.get("blocks") or [{"l": "the day"}])[0]["l"]
     langs = data.get("langs") or []
     top_lang = langs[0]["n"] if langs else "TypeScript"
     has_py = any(l["n"] == "Python" for l in langs)
     trend_up = len(mvals) >= 6 and sum(mvals[-3:]) > sum(mvals[:3])
 
     data["insights"] = {
-        "rhythm": ("Most commits land on <b>" + peak_day + "</b>. "
-                   "<b>Decision:</b> I protect that day for deep work and keep meetings off it."),
+        "rhythm": ("Most commits land in the <b>" + peak_block + "</b> block. "
+                   "<b>Decision:</b> I protect that window for deep work and keep meetings out."),
         "langs": ("<b>" + top_lang + "</b> leads the stack"
                   + (", with <b>Python</b> close behind for the analytical work" if has_py else "")
                   + ". <b>Decision:</b> I choose the language by the problem, not by habit."),
@@ -204,7 +278,7 @@ def build():
                      + "<b>Decision:</b> I read cadence over volume, consistency beats heroics."),
     }
     data["decisions"] = [
-        {"obs": "My most active day is <b>" + peak_day + "</b>.",
+        {"obs": "My most active block is <b>" + peak_block + "</b>.",
          "act": "Guard it for hard problems; batch reviews for later."},
         {"obs": "Longest streak this year: <b>" + str(streak) + " days</b>.",
          "act": "Trust consistency over crunch; ship small and often."},

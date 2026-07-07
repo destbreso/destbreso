@@ -21,30 +21,27 @@ var SAMPLE = {
     { label: "public repos", val: 19, delta: 6, spark: [11, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19] }
   ],
   rhythm: (function () {
-    // weekday (rows) x week (cols): the shape the generator emits from the
-    // contribution calendar. Weekdays heavier than weekends, a slow seasonal
-    // swing across the year, one quiet stretch.
+    // weekday (rows) x hour (cols): the shape the generator emits from real
+    // commit timestamps. A night-owl pattern that spills into the weekend.
     var rows = [];
     for (var d = 0; d < 7; d++) {
-      var r = [], weekdayBias = d < 5 ? 1 : 0.45;
-      for (var w = 0; w < 52; w++) {
-        var season = 0.55 + 0.45 * Math.sin((w / 52) * Math.PI * 2 - 1);
-        var jitter = 0.6 + 0.4 * Math.sin(w * 1.7 + d);
-        var lull = (w > 30 && w < 34) ? 0.2 : 1;
-        r.push(Math.max(0, Math.min(1, season * weekdayBias * jitter * lull)));
+      var r = [];
+      for (var h = 0; h < 24; h++) {
+        var night = Math.exp(-Math.pow(h - 22.5, 2) / 9) + Math.exp(-Math.pow(h + 1.5, 2) / 6);
+        var noon = 0.4 * Math.exp(-Math.pow(h - 14, 2) / 10);
+        var wk = d >= 5 ? 1.15 : 1;
+        var base = (night + noon) * wk;
+        r.push(Math.max(0, Math.min(1, base * (0.85 + 0.3 * Math.sin(d + h)))));
       }
       rows.push(r);
     }
     return rows;
   })(),
   blocks: [
-    { l: "Mon", v: 17 },
-    { l: "Tue", v: 19 },
-    { l: "Wed", v: 18 },
-    { l: "Thu", v: 16 },
-    { l: "Fri", v: 14 },
-    { l: "Sat", v: 9 },
-    { l: "Sun", v: 7 }
+    { l: "night 21-06", v: 41 },
+    { l: "evening 17-21", v: 24 },
+    { l: "afternoon 12-17", v: 20 },
+    { l: "morning 06-12", v: 15 }
   ],
   langs: [
     { n: "TypeScript", p: 46 },

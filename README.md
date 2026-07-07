@@ -21,13 +21,25 @@
 
 I write about algorithms with a mathematician's eye at **[destbreso.com/blog](https://destbreso.com/blog)**. The through-line is *Algorithms Under a Handicap*: methods that have to work with less, less memory, less time, or no view of the future.
 
-### `03` · Rhythm
+### `03` · One year, three readings
 
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" width="100%" alt="A year of commits rendered as a waveform and reconstructed through its Fourier harmonics, updated daily" />
+The same year of commits, put through three lenses that give three dimensions of one dataset. All generated daily from real data.
 
-<sub>A year of commits, read as a signal. Generated daily from real data.</sub>
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/commit-rhythm.svg" width="100%" alt="A year of weekly commit counts reconstructed through its Fourier harmonics, updated daily" />
 
-The faint bars are the raw weekly commit counts. The bright curve is that signal rebuilt from only its dominant **Fourier harmonics**: the few repeating cycles that explain most of the variation. A strong low harmonic is a slow seasonal swing across the year; the higher ones are the shorter bursts on top. Read the curve as the shape of the year with the noise filtered out. The full breakdown, next to two more views of the same year, lives on [the data page](https://destbreso.github.io/destbreso/).
+<sub>**As a spectrum.** The faint bars are the raw weekly commit counts. The bright curve is that signal rebuilt from only its dominant **Fourier harmonics**: the few repeating cycles that explain most of the variation. A strong low harmonic is a slow seasonal swing; the higher ones are the shorter bursts on top.</sub>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/hilbert.svg" width="380" alt="The 365 days of the year laid in order along a Hilbert space-filling curve" />
+</div>
+
+<sub>**Folded into space.** The same signal, in space instead of time. A **Hilbert curve** threads every cell of a grid on one continuous line while keeping days that are close in time close in space, so its pulse runs in step with the waveform above. The 365 days lie along it in order, brightest where the work was busiest.</sub>
+
+<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/contours.svg" width="100%" alt="The year as a height field with contour lines traced by marching squares" />
+
+<sub>**As a landscape.** The calendar is a height field, taller where the days were busier. **Marching squares** traces its level sets, so busy stretches close into loops and quiet ones stay open, the way contour lines wrap a hill on a map.</sub>
+
+<sub>The interactive versions, with the analyst-report data behind them, live on [the data page](https://destbreso.github.io/destbreso/).</sub>
 
 ---
 

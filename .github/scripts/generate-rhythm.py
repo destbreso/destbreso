@@ -146,11 +146,11 @@ def build_svg(sig):
     # traveling light pulse (comet) along the exact curve, seamless loop
     parts.append('<path d="%s" fill="none" stroke="%s" stroke-width="2.6" stroke-linecap="round" '
                  'pathLength="1000" stroke-dasharray="46 1000" filter="url(#glow)">'
-                 '<animate attributeName="stroke-dashoffset" values="1046;-46" dur="7s" '
+                 '<animate attributeName="stroke-dashoffset" values="1046;-46" dur="12s" '
                  'repeatCount="indefinite" calcMode="linear"/></path>' % (curve, ACC))
     # glowing head dot riding the curve, synced
     parts.append('<circle r="3.4" fill="#eafcff" filter="url(#glow)">'
-                 '<animateMotion dur="7s" repeatCount="indefinite" rotate="0">'
+                 '<animateMotion dur="12s" repeatCount="indefinite" rotate="0">'
                  '<mpath xlink:href="#rhythm"/></animateMotion></circle>')
     # No baked-in text: the waveform speaks for itself; any context lives in the
     # README prose, never stamped on the image.

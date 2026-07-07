@@ -40,9 +40,12 @@ jobs:
         run: python .github/scripts/generate-hilbert.py
 
       # ── Analyst-page data snapshot ───────────────────────────────
+      # PAT_TOKEN is optional: set it (a PAT with repo scope) to include PRIVATE
+      # repos in the day x hour rhythm. Without it, the rhythm uses public repos.
       - name: Generate data snapshot (data.json)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-data.py
 
       # ── Push generated artifacts to the output branch ────────────
