@@ -10,14 +10,16 @@ load and nothing can rate-limit.
 
 | Script | Output (on `output`) | What it is |
 | --- | --- | --- |
-| `generate-signal.py` | `signal.svg` | The year as one signal: a Fourier reconstruction of the weekly commit counts (top) and the same year folded onto a Hilbert curve (bottom). Both pulses share a single SMIL timeline, so they stay in sync even inside a README (which runs no JavaScript). |
-| `generate-contours.py` | `contours.svg` | The year as a landscape: the daily calendar as a height field, its level sets traced by marching squares. |
-| `generate-data.py` | `data.json` | Every number on the analyst page: KPIs, the day x hour rhythm heatmap, blocks, languages, effort by project, this week vs the year baseline, momentum, and the composed insights. |
+| `generate-data.py` | `data.json`, `series.json` | Every number on the analyst page (KPIs, the day x hour rhythm heatmap, blocks, languages, effort by project, this week vs the year baseline, momentum, the composed insights), and the 52-week series the year figure is drawn from. Runs first. |
+| `generate-year.py` | `year.svg` | The year in pixels for the README: a column a week, public under private, walked by a small blueprint robot (its pixels in `assets/robot.json`, shared with the page). Animated by CSS keyframes inside the SVG on one clock, since a README runs no JavaScript. |
+
+Before generating, the workflow restores the last published `data.json`, `series.json` and `year.svg`: a generator that fails writes nothing, so the day before's file is deployed again rather than vanishing from the README.
 
 `generate-heatmap.py` is an unused experiment and is not wired into the workflow.
 
-The site (`assets/script.js`) fetches `data.json` with `cache: no-store` and renders it,
-falling back to an embedded, clearly labeled sample if the snapshot is missing.
+The site (`assets/script.js`) fetches `data.json` with `cache: no-store` and renders it; if the
+snapshot is missing it says so and shows no numbers. `assets/year.js` draws the interactive year
+from `series.json`.
 
 ## Environment
 
@@ -50,7 +52,7 @@ To include your own private repositories, add a Personal Access Token as a secre
 
 With the secret set, every generator prefers the PAT, so `data.json` gets
 `rhythmScope: "all repos"`, the heatmap fills across all your commits, a `private work` bar
-appears in the effort chart, and the KPIs, momentum, signal, and contours all reflect your
+appears in the effort chart, and the KPIs, momentum and the year figure all reflect your
 full public plus private year.
 
 Until the secret exists, GitHub's linter warns `Context access might be invalid: PAT_TOKEN`

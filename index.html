@@ -9,6 +9,11 @@
       content="How David Estévez builds, read from the data. An analyst's view of real commit history: work rhythm, portfolio mix, momentum, and the decisions the data drives. Rebuilt daily."
     />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0e14'/%3E%3Crect x='19' y='19' width='8' height='8' fill='none' stroke='%234dd4e0' stroke-width='2'/%3E%3Cpath d='M5 22 C10 22 11 8 16 8 S22 22 27 22' fill='none' stroke='%234dd4e0' stroke-width='2'/%3E%3C/svg%3E" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How David Estévez builds, read from the data" />
+    <meta property="og:description" content="An analyst's view of a year of real commits: when the work happens, what it is made of, its momentum, and the year week by week. Rebuilt daily." />
+    <meta property="og:url" content="https://destbreso.github.io/destbreso/" />
+    <meta name="twitter:card" content="summary" />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
@@ -26,6 +31,7 @@
         <div class="eyebrow">// signal</div>
         <h1>How I build, read from the data.</h1>
         <p>I don't just ship code, I measure it. Every chart below is derived from my real commit history and paired with the decision it drives. Rebuilt once a day by a GitHub Action, so nothing here is live-fetched or breakable. <span class="qed">&#8718;</span></p>
+        <p class="unavailable" id="unavailable" hidden>Today's snapshot could not be loaded, so the numbers are not shown. Nothing here is ever filled in with made-up data.</p>
       </div>
 
       <section>
@@ -55,7 +61,7 @@
         <div class="sec-head"><span class="idx">03</span><h2>What the work is made of</h2><span class="hint">languages &amp; projects · 12 mo</span></div>
         <div class="grid2">
           <div class="card">
-            <div class="card-kicker">languages · bytes across active repos</div>
+            <div class="card-kicker">languages · bytes of code across active repos, markup left out</div>
             <div class="stack" id="stack"></div>
             <div class="legend" id="legend"></div>
             <div class="insight" id="insight-langs"></div>
@@ -77,25 +83,17 @@
         </div>
       </section>
 
-      <section>
-        <div class="sec-head"><span class="idx">05</span><h2>The same year, read three ways</h2><span class="hint">math &cap; computation</span></div>
-        <p class="sec-lede">One year of commits, put through three lenses a mathematician reaches for. Each is generated daily from the real contribution history, in the same blueprint language as the rest of the page.</p>
-        <div class="figs">
-          <figure class="fig">
-            <div class="fig-media"><img loading="lazy" alt="A year of commits as one signal: a Fourier waveform above the same year folded onto a Hilbert curve, their pulses in sync" src="https://raw.githubusercontent.com/destbreso/destbreso/output/signal.svg" onerror="this.closest('.fig').style.display='none'" /></div>
-            <figcaption>
-              <div class="fig-t">The year, as one signal</div>
-              <p>Two readings of the same data on one clock, so the two pulses move together. <b>Above</b>, the weekly commit counts (the faint bars) rebuilt from only their strongest <b>Fourier harmonics</b>: the few repeating cycles that explain most of the variation. <b>Below</b>, the same year folded onto a <b>Hilbert curve</b>, a single line that keeps days close in time close in space, brightest where the work was busiest. Time and space, one lens.</p>
-              <p class="fig-note">Reading the harmonics as habits: the low ones are slow seasons (a strong low harmonic means output swings across the year, busy stretches and lulls, project cycles or time off); the high ones are short bursts (crunch weeks, sprint spikes). Energy in the low harmonics means a smooth curve and a steady, cadenced routine; energy in the high ones means a jagged curve and more reactive, deadline-driven work. It suggests habits, it does not prove them: weekly counts are a proxy, and 52 weeks resolve only so much.</p>
-            </figcaption>
-          </figure>
-          <figure class="fig">
-            <div class="fig-media"><img loading="lazy" alt="The year as a height field with contour lines traced by the marching squares algorithm" src="https://raw.githubusercontent.com/destbreso/destbreso/output/contours.svg" onerror="this.closest('.fig').style.display='none'" /></div>
-            <figcaption>
-              <div class="fig-t">The year, as a landscape</div>
-              <p>The calendar is a height field, 52 weeks by 7 days, taller where the days were busier. <b>Marching squares</b>, the classic isoline algorithm, traces its level sets, so busy stretches close into loops and quiet ones stay open, the way contour lines wrap a hill on a topographic map. The highlight sweeps up through the elevations, low to high.</p>
-            </figcaption>
-          </figure>
+      <section id="year-section">
+        <div class="sec-head"><span class="idx">05</span><h2>The year, week by week</h2><span class="hint">52 weeks &middot; a column a week</span></div>
+        <div class="card year-card">
+          <div class="card-kicker">commits a week, public under private, the newest on the right</div>
+          <div id="yearfig" class="year" tabindex="0" role="slider" aria-label="The year, a week at a time" aria-valuemin="1" aria-valuemax="52" hidden></div>
+          <div class="year-foot">
+            <div id="year-read" class="year-read" aria-hidden="true"></div>
+            <button id="year-walk" class="year-walk" type="button" hidden>walk the year &#8594;</button>
+          </div>
+          <div class="pp-key"><span><i class="pub"></i>public</span><span><i class="priv"></i>private</span></div>
+          <div class="insight"><span class="arrow">&#8594;</span><span>Point at a week to read it, click one to send the robot there, or use the arrow keys. The same year, walked on its own, is on <a href="https://github.com/destbreso">the profile</a>.</span></div>
         </div>
       </section>
 
@@ -114,5 +112,6 @@
     </div>
 
     <script src="assets/script.js"></script>
+    <script src="assets/year.js"></script>
   </body>
 </html>

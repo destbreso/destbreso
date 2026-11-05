@@ -21,9 +21,20 @@ jobs:
       - name: Prepare output dir
         run: mkdir -p dist
 
+      # ── Start from the last published snapshot: a generator that fails today writes
+      #    nothing, so its file from the day before is deployed again instead of vanishing
+      #    from the README (the deploy replaces the whole branch). ─────────────────────
+      - name: Restore the last snapshot
+        run: |
+          if git fetch --depth=1 origin output; then
+            git archive FETCH_HEAD | tar -x -C dist
+            # only what is still generated: a retired figure is not carried on for ever
+            find dist -type f ! -name data.json ! -name series.json ! -name year.svg -delete
+          fi
+
       # ── Analyst-page data snapshot. Runs FIRST because it also writes
       #    dist/series.json, the private-inclusive daily commit series the
-      #    two SVG generators below consume so every commit view agrees.
+      #    year SVG below is drawn from, so every commit view agrees.
       #    PAT_TOKEN is optional: set it (a PAT with repo scope) to include
       #    PRIVATE repos everywhere. Without it, everything uses public repos.
       - name: Generate data snapshot (data.json + series.json)
@@ -32,21 +43,9 @@ jobs:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-data.py
 
-      # ── The signature: the year as one signal (Fourier waveform +
-      #    the same year folded onto a Hilbert curve, on ONE shared
-      #    timeline so both pulses stay perfectly in sync) ───────────
-      - name: Generate signal SVG
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: python .github/scripts/generate-signal.py
-
-      # ── The year as a landscape: marching-squares contour map ────
-      - name: Generate contours SVG
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: python .github/scripts/generate-contours.py
+      # ── The year in pixels, walked by the blueprint robot (reads dist/series.json) ──
+      - name: Generate the year SVG
+        run: python .github/scripts/generate-year.py
 
       # ── Push generated artifacts to the output branch ────────────
       - name: Deploy to output branch

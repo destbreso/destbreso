@@ -23,6 +23,7 @@ TOKEN = os.environ.get("GITHUB_TOKEN", "")
 PAT = os.environ.get("PAT_TOKEN", "")  # optional PAT with repo scope: unlocks PRIVATE repos for the rhythm
 UTC_OFFSET = int(os.environ.get("UTC_OFFSET", "-4"))  # Miami; used only when a commit date is normalized to UTC
 OUT = os.path.join("dist", "data.json")
+MARKUP = ("HTML", "CSS", "SCSS", "Sass", "Less", "Stylus")
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 BLOCKS = [
     ("morning 06-12", range(6, 12)),
@@ -92,7 +93,8 @@ def owner_repos(token, include_private):
 
 def repo_commit_dates(full, token, since):
     """Yield author-date strings for the user's commits in one repo since `since`."""
-    for page in range(1, 6):  # cap ~500 commits/repo so a busy repo cannot run away
+    # up to 5,000 commits a repo: a cap of 500 once cut the busiest repo's older months out of every view
+    for page in range(1, 51):
         path = "/repos/%s/commits?author=%s&since=%s" % (full, USER, since)
         try:
             batch = rest_tok(path, token, page)
@@ -159,29 +161,36 @@ def this_week(week_total, week_blocks, block_counts, seen):
     return {"commits": week_total, "volDelta": vol, "devBlock": dev_block, "devPts": dev_pts}
 
 
-def build_series(daily):
-    """Dense last-52-weeks daily totals aligned to Monday, plus weekly totals and
-    the 7x52 weekday grid (all private-inclusive) for the SVG generators, and the
-    monthly public/private split for momentum. `daily` maps date -> [pub, priv]."""
-    end = datetime.now(timezone.utc).date()
-    start = end - timedelta(days=7 * 52 - 1)
-    start -= timedelta(days=start.weekday())  # back up to Monday so weekday rows align
-    weekly = [0] * 52
+def local_today():
+    return (datetime.now(timezone.utc) + timedelta(hours=UTC_OFFSET)).date()
+
+
+def build_series(daily, today=None):
+    """The last 52 weeks, Monday to Sunday, the last one this week so far: daily totals,
+    weekly totals with their public share, the 7x52 weekday grid, and the monthly
+    public/private split for momentum. `daily` maps a local date -> [pub, priv].
+    The window ends today: one that ended a whole week back once dropped the newest days."""
+    end = today or local_today()
+    start = end - timedelta(days=end.weekday()) - timedelta(weeks=51)
+    weekly, weekly_pub = [0] * 52, [0] * 52
     daily_list = []
     grid = [[0] * 52 for _ in range(7)]
     m_pub, m_priv = defaultdict(int), defaultdict(int)
-    for i in range(7 * 52):
+    for i in range((end - start).days + 1):
         d = start + timedelta(days=i)
         pub, priv = daily.get(d.isoformat(), [0, 0])
         cnt = pub + priv
         daily_list.append(cnt)
         wk = i // 7
         weekly[wk] += cnt
+        weekly_pub[wk] += pub
         grid[d.weekday()][wk] = cnt
         mkk = d.isoformat()[:7]
         m_pub[mkk] += pub
         m_priv[mkk] += priv
-    return weekly, daily_list, grid, m_pub, m_priv
+    series = {"weekly": weekly, "weeklyPublic": weekly_pub, "daily": daily_list, "grid": grid,
+              "weekStart": start.isoformat(), "daysThisWeek": end.weekday() + 1}
+    return series, m_pub, m_priv
 
 
 def agg_streak(daily):
@@ -315,7 +324,8 @@ def build():
         block_priv = defaultdict(int)
         week_blocks = defaultdict(int)
         daily = defaultdict(lambda: [0, 0])  # date -> [public, private] commit counts
-        since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+        # back to the first Monday of the 52 weeks, with a day to spare for the time zone
+        since = (datetime.now(timezone.utc) - timedelta(days=372)).isoformat()
         week_cut = datetime.now(timezone.utc) - timedelta(days=7)
         seen = week_total = 0
         repo_commits, repo_private = {}, {}
@@ -351,7 +361,7 @@ def build():
             # Rebuild momentum + the commit KPIs from the aggregation so every commit
             # view agrees (private included, unlike the contribution calendar), and write
             # the daily series that the signal + contours SVG generators consume.
-            weekly, daily_list, grid, m_pub, m_priv = build_series(daily)
+            series, m_pub, m_priv = build_series(daily)
             mk = sorted(set(list(m_pub.keys()) + list(m_priv.keys())))[-12:]
             data["momentum"] = [m_pub[k] + m_priv[k] for k in mk]
             data["momentumPublic"] = [m_pub[k] for k in mk]
@@ -360,14 +370,22 @@ def build():
                 pi = data["momentum"].index(max(data["momentum"]))
                 data["momentumAnnot"] = {"index": pi, "text": "busiest month"}
             active_days = sum(1 for v in daily.values() if (v[0] + v[1]) > 0)
-            for i, val in ((0, seen), (1, active_days), (2, str(agg_streak(daily)) + "d")):
+            streak = agg_streak(daily)
+            month_active = defaultdict(int)
+            for dk, v in daily.items():
+                if v[0] + v[1] > 0:
+                    month_active[dk[:7]] += 1
+            # each KPI with the line it means: commits a month, active days a month; a streak and a repo count have none
+            sparks = (data["momentum"], [month_active.get(k, 0) for k in mk], None)
+            for i, val in ((0, seen), (1, active_days), (2, str(streak) + "d")):
                 data["kpis"][i]["val"] = val
                 data["kpis"][i]["delta"] = None
-                data["kpis"][i]["spark"] = data["momentum"]
+                data["kpis"][i]["spark"] = sparks[i]
             data["kpis"][3]["delta"] = None  # public-repos count has no meaningful YoY here
-            data["kpis"][3]["spark"] = data["momentum"]
+            data["kpis"][3]["spark"] = None
+            mvals = data["momentum"]
             with open(os.path.join("dist", "series.json"), "w", encoding="utf-8") as sf:
-                json.dump({"weekly": weekly, "daily": daily_list, "grid": grid}, sf, separators=(",", ":"))
+                json.dump(series, sf, separators=(",", ":"))
         else:
             print("rhythm: no commits found (set PAT_TOKEN to include private repos)", file=sys.stderr)
     except Exception as ex:
@@ -383,6 +401,9 @@ def build():
                     totals[lang] += b
             except Exception:
                 continue
+        # markup and styles left out: a few repos of generated HTML pages once made the stack read 81% HTML
+        for markup in MARKUP:
+            totals.pop(markup, None)
         grand = sum(totals.values()) or 1
         top = sorted(totals.items(), key=lambda kv: -kv[1])[:4]
         langs = [{"n": k, "p": round(v / grand * 100)} for k, v in top]
@@ -395,16 +416,15 @@ def build():
 
     # ---- narrative, composed from the numbers above (true by construction) ----
     peak_block = (data.get("blocks") or [{"l": "the day"}])[0]["l"]
-    langs = data.get("langs") or []
+    langs = [l for l in (data.get("langs") or []) if l["n"] != "Other"]
     top_lang = langs[0]["n"] if langs else "TypeScript"
-    has_py = any(l["n"] == "Python" for l in langs)
+    second = (", then <b>" + langs[1]["n"] + "</b>") if len(langs) > 1 else ""
     trend_up = len(mvals) >= 6 and sum(mvals[-3:]) > sum(mvals[:3])
 
     data["insights"] = {
         "rhythm": ("Across the year, most commits land in the <b>" + peak_block + "</b> block. "
                    "<b>Decision:</b> I protect that window for deep work and keep meetings out."),
-        "langs": ("<b>" + top_lang + "</b> leads the stack"
-                  + (", with <b>Python</b> close behind for the analytical work" if has_py else "")
+        "langs": ("<b>" + top_lang + "</b> leads the stack" + second
                   + ". <b>Decision:</b> I choose the language by the problem, not by habit."),
         "momentum": (("Momentum trends up across the year. " if trend_up else "Activity stays steady across the year. ")
                      + "<b>Decision:</b> I read cadence over volume, consistency beats heroics."),

@@ -21,21 +21,11 @@
 
 I write about algorithms with a mathematician's eye at **[destbreso.com/blog](https://destbreso.com/blog)**. The through-line is *Algorithms Under a Handicap*: methods that have to work with less, less memory, less time, or no view of the future.
 
-### `03` · One year, three readings
+### `03` · One year, a week at a time
 
-The same year of commits, read three ways that give three dimensions of one dataset. All generated daily from real data.
+<a href="https://destbreso.github.io/destbreso/"><img src="https://raw.githubusercontent.com/destbreso/destbreso/output/year.svg" width="100%" alt="A year of commits, one column a week, public work under private work, walked from the oldest week to this one by a small pixel robot" /></a>
 
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/signal.svg" width="100%" alt="A year of commits as one signal: a Fourier waveform above the same year folded onto a Hilbert curve, their pulses in sync" />
-
-<sub>**As a spectrum, and folded into space** (one clock, so the two pulses move together). Above: the weekly commit counts rebuilt from only their dominant **Fourier harmonics**, the few repeating cycles that explain most of the variation. Below: the same year folded onto a **Hilbert curve**, a single line that keeps days close in time close in space, brightest where the work was busiest.</sub>
-
-<sub>Reading the harmonics as habits: the low ones are slow seasons (output swinging across the year, busy stretches and lulls); the high ones are short bursts (crunch weeks). Energy in the low harmonics is a smooth curve and a steady routine; energy in the high ones is a jagged curve and reactive, deadline-driven work. It suggests habits, it does not prove them.</sub>
-
-<img src="https://raw.githubusercontent.com/destbreso/destbreso/output/contours.svg" width="100%" alt="The year as a height field with contour lines traced by marching squares" />
-
-<sub>**As a landscape.** The calendar is a height field, taller where the days were busier. **Marching squares** traces its level sets, so busy stretches close into loops and quiet ones stay open, the way contour lines wrap a hill on a map.</sub>
-
-<sub>The interactive versions, with the analyst-report data behind them, live on [the data page](https://destbreso.github.io/destbreso/).</sub>
+<sub>Each column is a week of the last year, the newest on the right: public work in cyan, private work in violet, this week's column still being written. A small robot walks the year, stops to look up at the busiest week and turns around at this one, pleased when it runs above the year's average. Generated daily from real data; on [the data page](https://destbreso.github.io/destbreso/) any week can be read, and the robot sent to it.</sub>
 
 ---
 
