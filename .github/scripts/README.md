@@ -10,10 +10,12 @@ load and nothing can rate-limit.
 
 | Script | Output (on `output`) | What it is |
 | --- | --- | --- |
-| `generate-data.py` | `data.json`, `series.json` | Every number on the analyst page (KPIs, the day x hour rhythm heatmap, blocks, languages, effort by project, this week vs the year baseline, momentum, the composed insights), and the 52-week series the year figure is drawn from. Runs first. |
-| `generate-year.py` | `year.svg` | The year in pixels for the README: a column a week, public under private, walked by a small blueprint robot (its pixels in `assets/robot.json`, shared with the page). Animated by CSS keyframes inside the SVG on one clock, since a README runs no JavaScript. |
+| `generate-data.py` | `data.json`, `series.json` | Every number on the analyst page (KPIs, the day x hour rhythm heatmap, blocks, languages, effort by project, this week vs the year baseline, momentum, the composed insights), and the 52-week series the year figure is drawn from: its weekly totals and, for each project, its commits week by week (`threads`, with the small ones folded into `small`). Runs first. |
+| `generate-year.py` | `year.svg`, `year-light.svg` | The year as threads for the README, dark and light: a thread a project in the order they started, thicker in the weeks they took more work. `assets/year.js` draws the same figure on the page, with the same geometry. |
 
-Before generating, the workflow restores the last published `data.json`, `series.json` and `year.svg`: a generator that fails writes nothing, so the day before's file is deployed again rather than vanishing from the README.
+Before generating, the workflow restores the last published `data.json`, `series.json`, `year.svg` and `year-light.svg`: a generator that fails writes nothing, so the day before's file is deployed again rather than vanishing from the README.
+
+The hero GIFs and the robot are not made here: they do not depend on the day's data, and `tools/README.md` says how they are rebuilt.
 
 `generate-heatmap.py` is an unused experiment and is not wired into the workflow.
 
@@ -68,8 +70,10 @@ and the code falls back to the public `GITHUB_TOKEN`.
   PAT policy, possibly SSO), and surfacing an employer's cadence is a confidentiality matter,
   so the per-repo heatmap and project chart deliberately do not pull them in.
 - **Private repository names are never emitted.** In the effort chart all private repos are
-  summed into a single `private work` bar. `data.json` contains only aggregate numbers and
-  public repo names.
+  summed into a single `private work` bar, and in the year's threads a private project is
+  unnamed, unless its repository's About gives a website: then it is named by that site's
+  address (so setting the website is how a private project is opted in). `data.json` and
+  `series.json` contain only aggregate numbers, public repo names and those addresses.
 - The PAT lives only as an encrypted Actions secret. It is never written to `data.json` or
   the `output` branch.
 

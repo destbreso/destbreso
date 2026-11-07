@@ -76,7 +76,7 @@ def rest_tok(path, token, page=None):
 
 
 def owner_repos(token, include_private):
-    """Owned, non-fork repos as (full_name, is_private). include_private uses
+    """Owned, non-fork repos as (full_name, is_private, homepage). include_private uses
     /user/repos (needs a PAT) so private repos are included in the aggregate."""
     path = ("/user/repos?affiliation=owner&sort=pushed" if include_private
             else "/users/" + USER + "/repos?type=owner&sort=pushed")
@@ -85,7 +85,7 @@ def owner_repos(token, include_private):
         batch = rest_tok(path, token, page)
         if not batch:
             break
-        out += [(r["full_name"], bool(r.get("private"))) for r in batch if not r.get("fork")]
+        out += [(r["full_name"], bool(r.get("private")), r.get("homepage") or "") for r in batch if not r.get("fork")]
         if len(batch) < 100:
             break
     return out
@@ -144,6 +144,44 @@ def build_projects(repo_commits, repo_private, top=6):
         projects.append({"n": "private work", "c": priv_total, "kind": "private"})
     projects.sort(key=lambda p: -p["c"])
     return projects
+
+
+THREAD_MIN = 8  # commits in the year for a project to get a thread of its own; the rest share one
+
+
+def public_name(full, private, homepage):
+    """A public repo by its name; a private one only by the public site it serves, when its About gives one, so the
+    author opts a private project in by setting its website, and no private repo's name is ever written out."""
+    if not private:
+        return full.split("/")[-1]
+    host = homepage.split("://", 1)[-1].split("/", 1)[0].lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or None
+
+
+def build_threads(repo_daily, repo_meta, start):
+    """The year a thread a project, for the year figure: each project's commits week by week over the same 52 weeks as
+    the series, the projects in the order they started (then the busiest first), the small ones folded into one."""
+    start = date.fromisoformat(start)
+    threads, small, nsmall = [], [0] * 52, 0
+    for full, days in repo_daily.items():
+        w = [0] * 52
+        for d, c in days.items():
+            k = (date.fromisoformat(d) - start).days // 7
+            if 0 <= k < 52:
+                w[k] += c
+        total = sum(w)
+        if not total:
+            continue
+        if total < THREAD_MIN:
+            small = [a + b for a, b in zip(small, w)]
+            nsmall += 1
+            continue
+        private, homepage = repo_meta[full]
+        threads.append({"n": public_name(full, private, homepage), "private": private, "w": w})
+    threads.sort(key=lambda t: (next(i for i, c in enumerate(t["w"]) if c), -sum(t["w"])))
+    return {"threads": threads, "small": {"count": nsmall, "w": small}}
 
 
 def this_week(week_total, week_blocks, block_counts, seen):
@@ -328,8 +366,9 @@ def build():
         since = (datetime.now(timezone.utc) - timedelta(days=372)).isoformat()
         week_cut = datetime.now(timezone.utc) - timedelta(days=7)
         seen = week_total = 0
-        repo_commits, repo_private = {}, {}
-        for full, priv in owner_repos(rtoken, include_private):
+        repo_commits, repo_private, repo_meta = {}, {}, {}
+        repo_daily = defaultdict(lambda: defaultdict(int))
+        for full, priv, homepage in owner_repos(rtoken, include_private):
             cnt = 0
             for iso in repo_commit_dates(full, rtoken, since):
                 dt, local = parse_commit(iso)
@@ -338,6 +377,7 @@ def build():
                 block_counts[blk] += 1
                 (block_priv if priv else block_pub)[blk] += 1
                 daily[local.date().isoformat()][1 if priv else 0] += 1
+                repo_daily[full][local.date().isoformat()] += 1
                 seen += 1
                 cnt += 1
                 if dt >= week_cut:
@@ -345,6 +385,7 @@ def build():
                     week_blocks[blk] += 1
             repo_commits[full] = cnt
             repo_private[full] = priv
+            repo_meta[full] = (priv, homepage)
         if seen:
             mx = max((max(r) for r in matrix), default=0) or 1
             data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
@@ -360,8 +401,9 @@ def build():
             data["thisWeek"] = this_week(week_total, week_blocks, block_counts, seen)
             # Rebuild momentum + the commit KPIs from the aggregation so every commit
             # view agrees (private included, unlike the contribution calendar), and write
-            # the daily series that the signal + contours SVG generators consume.
+            # the series the year figure is drawn from (its weeks, and a thread a project).
             series, m_pub, m_priv = build_series(daily)
+            series.update(build_threads(repo_daily, repo_meta, series["weekStart"]))
             mk = sorted(set(list(m_pub.keys()) + list(m_priv.keys())))[-12:]
             data["momentum"] = [m_pub[k] + m_priv[k] for k in mk]
             data["momentumPublic"] = [m_pub[k] for k in mk]
@@ -395,7 +437,7 @@ def build():
     try:
         rtoken = PAT or TOKEN
         totals = defaultdict(int)
-        for full, _ in owner_repos(rtoken, bool(PAT))[:30]:
+        for full, _, _ in owner_repos(rtoken, bool(PAT))[:30]:
             try:
                 for lang, b in rest_tok("/repos/" + full + "/languages", rtoken).items():
                     totals[lang] += b

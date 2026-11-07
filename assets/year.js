@@ -1,245 +1,153 @@
 /* ================================================================
-   The year in pixels, on the page: the README's figure (year.svg,
-   .github/scripts/generate-year.py) drawn on a canvas with the same
-   geometry and the same blueprint robot (assets/robot.json), here
-   to play with. Point at a week to read it, click one to send the
-   robot there, click the robot, or move it with the arrow keys.
-   With reduced motion it steps instead of walking, and never blinks.
+   The year as threads, on the page: the README's figure (year.svg,
+   .github/scripts/generate-year.py) drawn with the same geometry from
+   series.json, here to read. Point at a thread to read the project,
+   and at a week to read that week; the arrow keys move between
+   threads (up and down) and weeks (left and right).
    ================================================================ */
 (function () {
   "use strict";
   var SERIES_URL = "https://raw.githubusercontent.com/destbreso/destbreso/output/series.json";
-  // the README figure's geometry, in pixels of the art
-  var PITCH = 4, BAR = 3, HMAX = 34, LEFT = 6, TOP = 26;
-  var W = LEFT * 2 + 52 * PITCH - 1, GROUND = TOP + HMAX, H = GROUND + 6;
+  // the generator's geometry: change one, change both
+  var W = 1200, LEFT = 200, RIGHT = 24, TOP = 24, ROW = 16, BOTTOM = 34, HMAX = 6.8, K = 1.6;
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  var INK = { bg: "#0b0e14", grid: "#141c28", ground: "#263243", pub: "#4dd4e0", priv: "#a78bfa", line: "#4dd4e0", face: "#0b0e14", eye: "#c9f7fb", cap: "rgba(255,255,255,.28)", hover: "rgba(201,247,251,.16)" };
+  var INK = { grid: "#141b26", pub: "#4dd4e0", priv: "#a78bfa", small: "#5c6675", label: "#c9d1d9", plabel: "#a78bfa", dim: "#5c6675", now: "#4dd4e0", hover: "rgba(201,247,251,.06)" };
+  var NS = "http://www.w3.org/2000/svg";
+  var MONO = "ui-monospace,SFMono-Regular,Menlo,monospace";
 
   var box = document.getElementById("yearfig");
   var read = document.getElementById("year-read");
-  var walkBtn = document.getElementById("year-walk");
   if (!box) return;
-  var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  var canvas = document.createElement("canvas");
-  canvas.setAttribute("aria-hidden", "true");
-  box.appendChild(canvas);
-  var ctx = canvas.getContext("2d");
-  var scale = 4;
+  var rows = [], weeks = [], step = (W - LEFT - RIGHT) / 51, H = 0;
+  var at = { row: 0, week: 51 };
+  var svg, hoverRow, hoverCol, threadEls = [];
 
-  var S = null, R = null; // the series and the robot's pixels
-  var heights = [], pubH = [], weeks = [];
-  var bot = { x: 0, y: 0, week: 51, eyes: "front", legs: "a", hop: 0, path: [], t: 0, happyUntil: 0, blinkAt: 0, blinkUntil: 0, look: null };
-  var hover = -1, frame = 0, timer = 0, last = 0, lastAct = 0;
-  // what moves by itself (the cursor, the antenna, the blinks) moves only for a few seconds after the visitor does
-  // something, then holds still (WCAG 2.2.2); a walk or a hop runs to its end
-  function ambient(now) { return !still && now - lastAct < 6000; }
-  function touch() { lastAct = performance.now(); kick(); }
-
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function smooth(pts) {
+    var d = "M" + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      d += "C" + [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]].map(function (v) { return v.toFixed(1); }).join(" ");
+    }
+    return d;
+  }
+  function half(c) { return c ? Math.min(HMAX, K * Math.sqrt(c)) : 0; }
+  function commits(n) { return n === 1 ? "1 commit" : n.toLocaleString("en-US") + " commits"; }
   function weekLabel(i) {
     var d = weeks[i];
-    if (!d) return "Week " + (i + 1);
-    return "Week of " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + (i === 51 ? " (this week, so far)" : "");
+    return "the week of " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + (i === 51 ? " (this one, so far)" : "");
   }
-  function describe(i) {
-    var c = S.weekly[i], p = S.weeklyPublic ? S.weeklyPublic[i] : null;
-    var n = c === 1 ? "1 commit" : c.toLocaleString("en-US") + " commits";
-    if (!c) return weekLabel(i) + ": no commits";
-    return weekLabel(i) + ": " + n + (p == null ? "" : ", " + p + " public and " + (c - p) + " private");
+  function describe() {
+    var r = rows[at.row];
+    if (!r) return "";
+    var total = r.w.reduce(function (a, b) { return a + b; }, 0);
+    var active = r.w.filter(function (c) { return c; }).length;
+    var who = r.name || "private work";
+    var c = r.w[at.week];
+    return who + ": " + commits(total) + " in " + active + (active === 1 ? " week" : " weeks") + "; " + weekLabel(at.week) + ", " + (c ? commits(c) : "none");
   }
-  function setRead(i) {
-    var text = describe(i);
+  function show() {
+    var text = describe();
     if (read) read.textContent = text;
-    box.setAttribute("aria-valuenow", String(i + 1));
-    box.setAttribute("aria-valuetext", text);
+    var y = TOP + at.row * ROW;
+    hoverRow.setAttribute("y", y);
+    hoverCol.setAttribute("x", (LEFT + at.week * step - step / 2).toFixed(1));
+    threadEls.forEach(function (g, i) { g.setAttribute("opacity", i === at.row ? "1" : ".55"); });
+  }
+  function rest() {
+    threadEls.forEach(function (g) { g.setAttribute("opacity", "1"); });
+    hoverRow.setAttribute("y", -100);
+    hoverCol.setAttribute("x", -100);
   }
 
-  // the robot stands on the highest of the three columns under its body, as in the README
-  function groundAt(i) { return Math.max(heights[Math.max(0, i - 1)] || 0, heights[i] || 0, heights[Math.min(51, i + 1)] || 0); }
-  function spot(i) { return { x: LEFT + i * PITCH + 1 - R.w / 2 + 1, y: GROUND - groundAt(i) - R.h }; }
-
-  function walkTo(target, opts) {
-    target = Math.max(0, Math.min(51, target));
-    var from = bot.week, steps = [], dir = target > from ? 1 : -1;
-    for (var i = from; i !== target; i += dir) steps.push(i + dir);
-    bot.week = target;
-    setRead(target);
-    if (still || !steps.length) {
-      var s = spot(target); bot.x = s.x; bot.y = s.y; bot.path = []; bot.eyes = "front";
-      return kick();
-    }
-    var per = (opts && opts.per) || 0.11, t = 0, prev = spot(from);
-    bot.path = [];
-    steps.forEach(function (w) {
-      var a = prev, b = spot(w), arc = 2 + Math.max(0, a.y - b.y) / 3;
-      for (var k = 1; k <= 4; k++) {
-        var f = k / 4;
-        bot.path.push({ at: t + per * f, x: Math.round(a.x + (b.x - a.x) * f), y: Math.round(a.y + (b.y - a.y) * f - arc * Math.sin(Math.PI * f)), legs: k % 2 ? "b" : "a", pause: opts && opts.pauseAt === w ? 1.6 : 0 });
+  function draw() {
+    H = TOP + ROW * rows.length + BOTTOM;
+    svg = el("svg", { viewBox: "0 0 " + W + " " + H, width: "100%", "aria-hidden": "true" });
+    var first = weeks[0];
+    for (var k = 0; k < 52; k++) {
+      var a = weeks[k], b = new Date(a.getTime() + 6 * 864e5);
+      if (k === 0 || a.getUTCMonth() !== b.getUTCMonth() || a.getUTCDate() === 1) {
+        var m = a.getUTCMonth() !== b.getUTCMonth() ? b : a, x = LEFT + k * step;
+        el("path", { d: "M" + x.toFixed(1) + " " + (TOP - 8) + "V" + (H - BOTTOM + 8), stroke: INK.grid }, svg);
+        el("text", { x: (x + 4).toFixed(1), y: H - 12, fill: INK.dim, "font-size": 12, "font-family": MONO }, svg).textContent = MONTHS[m.getUTCMonth()];
       }
-      t += per + (opts && opts.pauseAt === w ? 1.6 : 0);
-      prev = b;
+    }
+    el("rect", { x: (LEFT + 51 * step - step / 2).toFixed(1), y: TOP - 8, width: step.toFixed(1), height: H - TOP - BOTTOM + 16, fill: INK.now, "fill-opacity": ".08" }, svg);
+    hoverCol = el("rect", { x: -100, y: TOP - 8, width: step.toFixed(1), height: H - TOP - BOTTOM + 16, fill: INK.hover }, svg);
+    hoverRow = el("rect", { x: 0, y: -100, width: W, height: ROW, fill: INK.hover }, svg);
+    rows.forEach(function (r, i) {
+      var y = TOP + i * ROW + ROW / 2, w = r.w, f = -1, l = -1;
+      for (var k = 0; k < 52; k++) if (w[k]) { if (f < 0) f = k; l = k; }
+      var col = INK[r.kind], x0 = LEFT + f * step, x1 = LEFT + l * step;
+      var g = el("g", {}, svg);
+      threadEls.push(g);
+      el("path", { d: "M" + x0.toFixed(1) + " " + y + "H" + x1.toFixed(1), stroke: col, "stroke-opacity": ".45" }, g);
+      if (l > f) {
+        var top = [[x0 - step * 0.6, y]];
+        for (var k2 = f; k2 <= l; k2++) top.push([LEFT + k2 * step, y - half(w[k2])]);
+        top.push([Math.min(W - RIGHT, x1 + step * 0.6), y]);
+        var bot = top.map(function (p) { return [p[0], 2 * y - p[1]]; }).reverse();
+        el("path", { d: smooth(top) + "L" + smooth(bot).slice(1) + "Z", fill: col }, g);
+      } else {
+        el("circle", { cx: x0.toFixed(1), cy: y, r: Math.max(1.8, half(w[f])).toFixed(1), fill: col }, g);
+      }
+      if (r.name) {
+        var lc = r.kind === "pub" ? INK.label : r.kind === "priv" ? INK.plabel : INK.dim;
+        el("text", { x: (x0 - step * 0.6 - 5).toFixed(1), y: (y + 4.4).toFixed(1), "text-anchor": "end", fill: lc, "font-size": 13, "font-family": MONO }, g).textContent = r.name;
+      }
     });
-    bot.eyes = dir > 0 ? "right" : "left";
-    bot.t = 0;
-    kick();
+    box.appendChild(svg);
   }
 
-  function draw(now, live) {
-    var s = scale;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = INK.bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(s, 0, 0, s, 0, 0);
-    ctx.fillStyle = INK.grid;
-    for (var gx = 0; gx < W; gx += 8) ctx.fillRect(gx, 0, 1 / s, H);
-    for (var gy = 0; gy < H; gy += 8) ctx.fillRect(0, gy, W, 1 / s);
-    ctx.fillStyle = INK.ground; ctx.fillRect(LEFT - 2, GROUND, 52 * PITCH + 3, 1);
-    for (var t = 0; t < 52; t++) {
-      var a = weeks[t], b = a && new Date(a.getTime() + 6 * 864e5);
-      if (a && (a.getUTCMonth() !== b.getUTCMonth() || a.getUTCDate() === 1)) ctx.fillRect(LEFT + t * PITCH + 1, GROUND + 2, 1, 2);
-    }
-    if (hover >= 0) { ctx.fillStyle = INK.hover; ctx.fillRect(LEFT + hover * PITCH - 1, 0, BAR + 2, GROUND); }
-    for (var i = 0; i < 52; i++) {
-      var h = heights[i]; if (!h) continue;
-      var x = LEFT + i * PITCH, ph = pubH[i];
-      ctx.fillStyle = INK.pub; ctx.fillRect(x, GROUND - ph, BAR, ph);
-      ctx.fillStyle = INK.priv; ctx.fillRect(x, GROUND - h, BAR, h - ph);
-      ctx.fillStyle = INK.cap; ctx.fillRect(x, GROUND - h, BAR, 1);
-    }
-    // this week is still being written: its top pixel blinks (held lit with reduced motion)
-    if (!live || Math.floor(now / 500) % 2 === 0) { ctx.fillStyle = INK.line; ctx.fillRect(LEFT + 51 * PITCH, GROUND - heights[51] - 2, BAR, 1); }
-    // the robot
-    var bx = bot.x, by = bot.y - bot.hop;
-    var eyes = now < bot.blinkUntil ? "closed" : now < bot.happyUntil ? "happy" : bot.eyes;
-    sprite(R.head, bx, by, { O: INK.line, F: INK.face, A: INK.eye }, !live || Math.floor(now / 750) % 2 === 0 ? null : "A");
-    sprite(R.eyes[eyes] || R.eyes.front, bx, by, { E: INK.eye });
-    sprite(R.legs[bot.legs], bx, by + 11, { O: INK.line });
-  }
-
-  function sprite(rows, ox, oy, inks, skip) {
-    for (var y = 0; y < rows.length; y++)
-      for (var x = 0; x < rows[y].length; x++) {
-        var c = rows[y][x];
-        if (c === "." || c === skip || !inks[c]) continue;
-        ctx.fillStyle = inks[c]; ctx.fillRect(ox + x, oy + y, 1, 1);
-      }
-  }
-
-  function tick(now) {
-    frame = 0;
-    var dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
-    last = now;
-    var busy = false;
-    if (bot.path.length) {
-      bot.t += dt;
-      while (bot.path.length && bot.path[0].at <= bot.t) {
-        var p = bot.path.shift();
-        bot.x = p.x; bot.y = p.y; bot.legs = p.legs;
-        if (p.pause) bot.eyes = "up";
-      }
-      if (!bot.path.length) { bot.legs = "a"; bot.eyes = "front"; }
-      else if (bot.eyes === "up" && bot.path[0].at - bot.t < 0.2) bot.eyes = bot.path[0].x >= bot.x ? "right" : "left";
-      busy = true;
-    }
-    if (bot.hop > 0) { bot.hop = Math.max(0, bot.hop - dt * 14); busy = true; }
-    var live = ambient(now) || busy;
-    if (live && !still) {
-      if (!bot.blinkAt) bot.blinkAt = now + 1500 + Math.random() * 2500;
-      if (now >= bot.blinkAt) { bot.blinkUntil = now + 140; bot.blinkAt = now + 3000 + Math.random() * 4000; }
-    }
-    draw(now, live);
-    // every frame while it walks or hops; ten a second while it idles; none once it holds still
-    if (busy) frame = requestAnimationFrame(tick);
-    else if (live) timer = setTimeout(function () { timer = 0; frame = requestAnimationFrame(tick); }, 100);
-  }
-  function kick() {
-    if (timer) { clearTimeout(timer); timer = 0; }
-    if (!frame) { last = 0; frame = requestAnimationFrame(tick); }
-  }
-
-  // drawn at a whole number of device pixels a pixel of the art, shown at the card's full width (pixelated, so it stays crisp)
-  function fit() {
-    var dpr = window.devicePixelRatio || 1;
-    scale = Math.max(1, Math.ceil((Math.max(200, box.clientWidth) * dpr) / W));
-    canvas.width = W * scale; canvas.height = H * scale;
-    canvas.style.width = "100%";
-    canvas.style.height = "auto";
-    if (S) draw(performance.now(), false);
-  }
-
-  function weekAt(ev) {
-    var r = canvas.getBoundingClientRect();
+  function pointAt(ev) {
+    var r = svg.getBoundingClientRect();
     var ux = (ev.clientX - r.left) / r.width * W, uy = (ev.clientY - r.top) / r.height * H;
-    return { week: Math.max(0, Math.min(51, Math.floor((ux - LEFT + 0.5) / PITCH))), ux: ux, uy: uy };
+    at.week = Math.max(0, Math.min(51, Math.round((ux - LEFT) / step)));
+    at.row = Math.max(0, Math.min(rows.length - 1, Math.floor((uy - TOP) / ROW)));
+    show();
   }
-  function onBot(p) { return p.ux >= bot.x && p.ux <= bot.x + R.w && p.uy >= bot.y && p.uy <= bot.y + R.h; }
 
-  function start(series, robot) {
-    S = series; R = robot;
-    var weekly = S.weekly.slice(-52), peak = Math.max.apply(null, weekly) || 1, per = peak / HMAX;
-    S.weekly = weekly;
-    if (S.weeklyPublic) S.weeklyPublic = S.weeklyPublic.slice(-52);
-    heights = weekly.map(function (c) { return c ? Math.max(1, Math.round(c / per)) : 0; });
-    // without the public share (a snapshot older than it) every column is drawn in one tone
-    pubH = weekly.map(function (c, i) {
-      if (!S.weeklyPublic) return heights[i];
-      return c ? Math.min(heights[i], Math.round(S.weeklyPublic[i] / per)) : 0;
-    });
-    var first = S.weekStart ? new Date(S.weekStart + "T00:00:00Z") : null;
-    if (!first) { var n = new Date(); first = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() - ((n.getUTCDay() + 6) % 7) - 51 * 7)); }
+  function start(S) {
+    rows = S.threads.map(function (t) { return { name: t.n, kind: t.private ? "priv" : "pub", w: t.w.slice(-52) }; });
+    if (S.small && S.small.count) rows.push({ name: S.small.count + (S.small.count === 1 ? " small one" : " small ones"), kind: "small", w: S.small.w.slice(-52) });
+    rows = rows.filter(function (r) { return r.w.some(function (c) { return c; }); });
+    var first = new Date(S.weekStart + "T00:00:00Z");
     for (var i = 0; i < 52; i++) weeks.push(new Date(first.getTime() + i * 7 * 864e5));
-    var s0 = spot(51); bot.x = s0.x; bot.y = s0.y;
+    draw();
     box.hidden = false;
-    if (walkBtn) walkBtn.hidden = false;
-    setRead(51);
-    fit();
-    touch();
-
-    canvas.addEventListener("pointermove", function (ev) {
-      var p = weekAt(ev);
-      if (p.week !== hover) { hover = p.week; setRead(hover); }
-      // its eyes follow the pointer when it stands still
-      if (!bot.path.length) bot.eyes = p.ux < bot.x - 2 ? "left" : p.ux > bot.x + R.w + 2 ? "right" : p.uy < bot.y ? "up" : "front";
-      touch();
-    });
-    canvas.addEventListener("pointerleave", function () { hover = -1; setRead(bot.week); if (!bot.path.length) bot.eyes = "front"; touch(); });
-    canvas.addEventListener("click", function (ev) {
-      var p = weekAt(ev);
-      touch();
-      if (onBot(p)) { bot.hop = still ? 0 : 4; bot.happyUntil = performance.now() + 1100; return kick(); }
-      walkTo(p.week);
-    });
+    if (read) read.textContent = "Point at a thread to read it.";
+    svg.addEventListener("pointermove", pointAt);
+    svg.addEventListener("pointerleave", function () { rest(); if (read) read.textContent = "Point at a thread to read it."; });
+    box.addEventListener("focus", show);
+    box.addEventListener("blur", rest);
     box.addEventListener("keydown", function (ev) {
-      var k = ev.key, to = null;
-      if (k === "ArrowRight") to = bot.week + 1;
-      else if (k === "ArrowLeft") to = bot.week - 1;
-      else if (k === "PageUp") to = bot.week - 4;
-      else if (k === "PageDown") to = bot.week + 4;
-      else if (k === "Home") to = 0;
-      else if (k === "End") to = 51;
-      if (to === null) return;
+      var k = ev.key;
+      if (k === "ArrowUp") at.row = Math.max(0, at.row - 1);
+      else if (k === "ArrowDown") at.row = Math.min(rows.length - 1, at.row + 1);
+      else if (k === "ArrowLeft") at.week = Math.max(0, at.week - 1);
+      else if (k === "ArrowRight") at.week = Math.min(51, at.week + 1);
+      else if (k === "Home") at.week = 0;
+      else if (k === "End") at.week = 51;
+      else return;
       ev.preventDefault();
-      touch();
-      walkTo(to, { per: 0.07 });
+      show();
     });
-    if (walkBtn) walkBtn.addEventListener("click", function () {
-      // the README's walk: from the oldest week to this one, a look up at the busiest on the way
-      var busiest = 0;
-      for (var i = 1; i < 52; i++) if (weekly[i] > weekly[busiest]) busiest = i;
-      var s = spot(0); bot.x = s.x; bot.y = s.y; bot.week = 0; bot.path = [];
-      touch();
-      walkTo(51, { per: 0.34, pauseAt: busiest });
-    });
-    window.addEventListener("resize", fit);
   }
 
-  Promise.all([
-    fetch(SERIES_URL, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("no series"); return r.json(); }),
-    fetch("assets/robot.json").then(function (r) { return r.json(); })
-  ]).then(function (v) {
-    if (!v[0] || !v[0].weekly || v[0].weekly.length < 52) throw new Error("short series");
-    start(v[0], v[1]);
-  }).catch(function () {
-    var sec = document.getElementById("year-section");
-    if (sec) sec.hidden = true;
-  });
+  fetch(SERIES_URL, { cache: "no-store" })
+    .then(function (r) { if (!r.ok) throw new Error("no series"); return r.json(); })
+    .then(function (S) {
+      if (!S || !S.threads || !S.threads.length || !S.weekStart) throw new Error("no threads");
+      start(S);
+    })
+    .catch(function () {
+      var sec = document.getElementById("year-section");
+      if (sec) sec.hidden = true;
+    });
 })();

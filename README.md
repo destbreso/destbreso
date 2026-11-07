@@ -1,31 +1,57 @@
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/main/assets/hero-light.svg" />
-  <img alt="David Estévez, mathematician and software developer. Algorithms, craft, and systems worth building." src="https://raw.githubusercontent.com/destbreso/destbreso/main/assets/hero-dark.svg" width="100%" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/main/assets/hero-light.gif" />
+  <img alt="David Estévez, mathematician and software developer. Beside the name a Game of Life circuit runs: a glider gun, a reflector and an eater." src="https://raw.githubusercontent.com/destbreso/destbreso/main/assets/hero-dark.gif" width="100%" />
 </picture>
 
-**Mathematician & software developer.** I build systems from first principles: the same discipline that proves a theorem, pointed at production code.
+I studied mathematics in Havana and build software in Miami. The problems I enjoy most are the ones I have to understand before I can solve them: an algorithm that has to work with less memory than it would like, a system that has to keep its promises when a machine dies, a simulation where three rules turn out to be enough to build a computer.
 
-> The same rigor you apply to a topology proof can design a bulletproof distributed system.
+The circuit up there is one of those. It is Conway's Game of Life: a gun firing gliders, a reflector turning them and an eater swallowing them, written in a small language I made for building circuits out of gliders. In [the lab on destbreso.com](https://destbreso.com/interactive/game-of-life) it runs in your browser, and the same language builds logic gates, a bit of memory and an adder that sums two numbers with nothing but gliders.
 
 `B.Sc. Mathematics, U. de La Habana` &nbsp;·&nbsp; `Miami, FL` &nbsp;·&nbsp; `English / Spanish` &nbsp;·&nbsp; currently CTO [@Coverfleet](https://coverfleet.com)
 
+<br clear="right" />
+
+<a href="https://destbreso.com"><img align="right" width="150" src="https://raw.githubusercontent.com/destbreso/destbreso/main/assets/robot.svg" alt="A small white robot with a black glass face and green eyes; now and then its face shows the mark of destbreso.com" /></a>
+
+**[destbreso.com](https://destbreso.com)** is where I keep what I build: the lab, the blog, the films, and a few things you have to find on your own.
+
+The robot on the right lives there, somewhere in the dark. It doesn't come when called.
+
+<br clear="right" />
+
 ### `01` · Building
 
-- **[agentic-lab](https://github.com/destbreso/agentic-lab)**: a platform for autonomous agentic loops and AI workflows. Multi-provider, tool orchestration, real-time dashboard.
-- **[cv-generator](https://github.com/destbreso/cv-generator)**: an AI-powered, privacy-first resume builder. Local (Ollama) or cloud LLMs tailor a CV to any role, with live pagination and a print-ready layout.
-- **[load-testing-lab](https://github.com/destbreso/load-testing-lab)**: production load testing done properly. k6 + Artillery runners, InfluxDB metrics, Grafana dashboards, a real CLI.
+- **[dissect](https://github.com/destbreso/dissect)**: describe a process to your agent (a CI pipeline, a request through your architecture, a cipher's rounds) and it builds an interactive figure of it you can step through.
+- **[depict](https://github.com/destbreso/depict)**: turns an idea into an illustrated explainer, a sentence a beat, presented by a guide character. One of the guides was drawn by my daughter.
+- **[instead.fyi](https://instead.fyi)**: mortgages and household debt as simulations. Every screen holds one decision against its alternative, and it never names a winner.
+- **[cv-generator](https://github.com/destbreso/cv-generator)**: a resume builder where the LLM you choose, local or in the cloud, tailors your CV to a role, and nothing leaves your browser.
+- **[agentic-lab](https://github.com/destbreso/agentic-lab)**: a platform for running autonomous agent loops across LLM providers, with their tools and a live dashboard.
 
 <sub>[all repositories →](https://github.com/destbreso?tab=repositories)</sub>
 
-### `02` · Writing
+### `02` · The lab
 
-I write about algorithms with a mathematician's eye at **[destbreso.com/blog](https://destbreso.com/blog)**. The through-line is *Algorithms Under a Handicap*: methods that have to work with less, less memory, less time, or no view of the future.
+Simulations I build to understand something, all of them running in the browser.
 
-### `03` · One year, a week at a time
+<a href="https://destbreso.com/interactive/game-of-life"><img src="https://destbreso.com/images/lab/game-of-life.jpg" width="24%" alt="Game of Life" /></a>
+<a href="https://destbreso.com/interactive/ant-simulator"><img src="https://destbreso.com/images/lab/ant-simulator.jpg" width="24%" alt="An ant colony" /></a>
+<a href="https://destbreso.com/interactive/pathfinding"><img src="https://destbreso.com/images/lab/pathfinding.jpg" width="24%" alt="Pathfinding" /></a>
+<a href="https://destbreso.com/interactive/dsa-lab"><img src="https://destbreso.com/images/lab/dsa-lab.jpg" width="24%" alt="The DSA lab" /></a>
 
-<a href="https://destbreso.github.io/destbreso/"><img src="https://raw.githubusercontent.com/destbreso/destbreso/output/year.svg" width="100%" alt="A year of commits, one column a week, public work under private work, walked from the oldest week to this one by a small pixel robot" /></a>
+<sub>Circuits made of gliders &nbsp;·&nbsp; an ant colony that finds its food with no plan &nbsp;·&nbsp; how a path gets found &nbsp;·&nbsp; data structures you can watch work. <a href="https://destbreso.com/interactive">All of the lab →</a></sub>
 
-<sub>Each column is a week of the last year, the newest on the right: public work in cyan, private work in violet, this week's column still being written. A small robot walks the year, stops to look up at the busiest week and turns around at this one, pleased when it runs above the year's average. Generated daily from real data; on [the data page](https://destbreso.github.io/destbreso/) any week can be read, and the robot sent to it.</sub>
+### `03` · Writing and films
+
+I write about algorithms with a mathematician's eye at **[destbreso.com/blog](https://destbreso.com/blog)**. The through-line is *Algorithms Under a Handicap*: methods that have to work with less, less memory, less time, or no view of the future. Some of what I build becomes a short film [on YouTube](https://youtube.com/@sagekage010).
+
+### `04` · The year, a thread a project
+
+<a href="https://destbreso.github.io/destbreso/"><picture>
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/destbreso/destbreso/output/year-light.svg" />
+  <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/year.svg" width="100%" alt="The last twelve months as threads, one a project in the order each started, thicker in the weeks it took more work" />
+</picture></a>
+
+<sub>Every project I worked on in the last twelve months, in the order they started, each thread thicker in the weeks it took more of my time: public projects in cyan with their names, private work in violet, named only by the public site it serves. Drawn every day from my commits; <a href="https://destbreso.github.io/destbreso/">the data page</a> has the rest: when I work, with what, and how the year went.</sub>
 
 ---
 

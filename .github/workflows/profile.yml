@@ -29,7 +29,7 @@ jobs:
           if git fetch --depth=1 origin output; then
             git archive FETCH_HEAD | tar -x -C dist
             # only what is still generated: a retired figure is not carried on for ever
-            find dist -type f ! -name data.json ! -name series.json ! -name year.svg -delete
+            find dist -type f ! -name data.json ! -name series.json ! -name year.svg ! -name year-light.svg -delete
           fi
 
       # ── Analyst-page data snapshot. Runs FIRST because it also writes
@@ -43,8 +43,8 @@ jobs:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: python .github/scripts/generate-data.py
 
-      # ── The year in pixels, walked by the blueprint robot (reads dist/series.json) ──
-      - name: Generate the year SVG
+      # ── The year as threads, a project each, dark and light (reads dist/series.json) ──
+      - name: Generate the year SVGs
         run: python .github/scripts/generate-year.py
 
       # ── Push generated artifacts to the output branch ────────────
