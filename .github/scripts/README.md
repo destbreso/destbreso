@@ -71,9 +71,10 @@ and the code falls back to the public `GITHUB_TOKEN`.
   so the per-repo heatmap and project chart deliberately do not pull them in.
 - **Private repository names are never emitted.** In the effort chart all private repos are
   summed into a single `private work` bar, and in the year's threads a private project is
-  unnamed, unless its repository's About gives a website: then it is named by that site's
-  address (so setting the website is how a private project is opted in). `data.json` and
-  `series.json` contain only aggregate numbers, public repo names and those addresses.
+  unnamed unless the author opts it in: a topic `thread-<label>` on the repository names its
+  thread `<label>` (repositories with the same label share one thread), or else its About's
+  website names it by that address, host and path. `data.json` and `series.json` contain only
+  aggregate numbers, public repo names and those opted-in labels.
 - The PAT lives only as an encrypted Actions secret. It is never written to `data.json` or
   the `output` branch.
 

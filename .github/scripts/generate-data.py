@@ -76,7 +76,7 @@ def rest_tok(path, token, page=None):
 
 
 def owner_repos(token, include_private):
-    """Owned, non-fork repos as (full_name, is_private, homepage). include_private uses
+    """Owned, non-fork repos as (full_name, is_private, homepage, topics). include_private uses
     /user/repos (needs a PAT) so private repos are included in the aggregate."""
     path = ("/user/repos?affiliation=owner&sort=pushed" if include_private
             else "/users/" + USER + "/repos?type=owner&sort=pushed")
@@ -85,7 +85,7 @@ def owner_repos(token, include_private):
         batch = rest_tok(path, token, page)
         if not batch:
             break
-        out += [(r["full_name"], bool(r.get("private")), r.get("homepage") or "") for r in batch if not r.get("fork")]
+        out += [(r["full_name"], bool(r.get("private")), r.get("homepage") or "", r.get("topics") or []) for r in batch if not r.get("fork")]
         if len(batch) < 100:
             break
     return out
@@ -149,37 +149,55 @@ def build_projects(repo_commits, repo_private, top=6):
 THREAD_MIN = 8  # commits in the year for a project to get a thread of its own; the rest share one
 
 
-def public_name(full, private, homepage):
-    """A public repo by its name; a private one only by the public site it serves, when its About gives one, so the
-    author opts a private project in by setting its website, and no private repo's name is ever written out."""
+THREAD_TOPIC = "thread-"  # a topic thread-<label> names a repo's thread <label>; repos with the same label share one
+
+
+def public_name(full, private, homepage, topics=()):
+    """A thread's name: a topic thread-<label> first, then a public repo's own name, then a private repo's public site
+    (its About's website, host and path). The author opts a private project in by either; no private repo's name is
+    ever written out unless its topic says so."""
+    for t in topics:
+        if t.startswith(THREAD_TOPIC) and len(t) > len(THREAD_TOPIC):
+            return t[len(THREAD_TOPIC):]
     if not private:
         return full.split("/")[-1]
-    host = homepage.split("://", 1)[-1].split("/", 1)[0].lower()
-    if host.startswith("www."):
-        host = host[4:]
-    return host or None
+    site = homepage.split("://", 1)[-1].strip().rstrip("/").lower()
+    if site.startswith("www."):
+        site = site[4:]
+    return site or None
 
 
 def build_threads(repo_daily, repo_meta, start):
     """The year a thread a project, for the year figure: each project's commits week by week over the same 52 weeks as
-    the series, the projects in the order they started (then the busiest first), the small ones folded into one."""
+    the series (repos that share a name share a thread), the projects in the order they started (then the busiest
+    first), the small ones folded into one."""
     start = date.fromisoformat(start)
-    threads, small, nsmall = [], [0] * 52, 0
+    named, anonymous = {}, []
     for full, days in repo_daily.items():
         w = [0] * 52
         for d, c in days.items():
             k = (date.fromisoformat(d) - start).days // 7
             if 0 <= k < 52:
                 w[k] += c
-        total = sum(w)
-        if not total:
+        if not sum(w):
             continue
-        if total < THREAD_MIN:
-            small = [a + b for a, b in zip(small, w)]
+        private, homepage, topics = repo_meta[full]
+        name = public_name(full, private, homepage, topics)
+        if name is None:
+            anonymous.append({"n": None, "private": True, "w": w})
+        elif name in named:
+            t = named[name]
+            t["w"] = [a + b for a, b in zip(t["w"], w)]
+            t["private"] = t["private"] and private  # violet only when every repo in it is private
+        else:
+            named[name] = {"n": name, "private": private, "w": w}
+    threads, small, nsmall = [], [0] * 52, 0
+    for t in list(named.values()) + anonymous:
+        if sum(t["w"]) < THREAD_MIN:
+            small = [a + b for a, b in zip(small, t["w"])]
             nsmall += 1
             continue
-        private, homepage = repo_meta[full]
-        threads.append({"n": public_name(full, private, homepage), "private": private, "w": w})
+        threads.append(t)
     threads.sort(key=lambda t: (next(i for i, c in enumerate(t["w"]) if c), -sum(t["w"])))
     return {"threads": threads, "small": {"count": nsmall, "w": small}}
 
@@ -368,7 +386,7 @@ def build():
         seen = week_total = 0
         repo_commits, repo_private, repo_meta = {}, {}, {}
         repo_daily = defaultdict(lambda: defaultdict(int))
-        for full, priv, homepage in owner_repos(rtoken, include_private):
+        for full, priv, homepage, topics in owner_repos(rtoken, include_private):
             cnt = 0
             for iso in repo_commit_dates(full, rtoken, since):
                 dt, local = parse_commit(iso)
@@ -385,7 +403,7 @@ def build():
                     week_blocks[blk] += 1
             repo_commits[full] = cnt
             repo_private[full] = priv
-            repo_meta[full] = (priv, homepage)
+            repo_meta[full] = (priv, homepage, topics)
         if seen:
             mx = max((max(r) for r in matrix), default=0) or 1
             data["rhythm"] = [[round(v / mx, 3) for v in row] for row in matrix]
@@ -437,7 +455,7 @@ def build():
     try:
         rtoken = PAT or TOKEN
         totals = defaultdict(int)
-        for full, _, _ in owner_repos(rtoken, bool(PAT))[:30]:
+        for full, _, _, _ in owner_repos(rtoken, bool(PAT))[:30]:
             try:
                 for lang, b in rest_tok("/repos/" + full + "/languages", rtoken).items():
                     totals[lang] += b

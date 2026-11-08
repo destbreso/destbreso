@@ -54,7 +54,7 @@ I write about algorithms with a mathematician's eye at **[destbreso.com/blog](ht
   <img src="https://raw.githubusercontent.com/destbreso/destbreso/output/year.svg" width="100%" alt="The last twelve months as threads, one a project in the order each started, thicker in the weeks it took more work" />
 </picture>
 
-<sub>Every project I worked on in the last twelve months, in the order they started, each thread thicker in the weeks it took more of my time: public projects in cyan with their names, private work in violet, named only by the public site it serves. Drawn every day from my commits; <a href="https://destbreso.github.io/destbreso/">the data page</a> has the rest: when I work, with what, and how the year went.</sub>
+<sub>Every project I worked on in the last twelve months, in the order they started, each thread thicker in the weeks it took more of my time: public projects in cyan with their names, private work in violet, named only where I chose to name it. Drawn every day from my commits; <a href="https://destbreso.github.io/destbreso/">the data page</a> has the rest: when I work, with what, and how the year went.</sub>
 
 ---
 
