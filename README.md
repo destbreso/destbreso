@@ -31,7 +31,7 @@ The robot on the right lives there, somewhere in the dark. It doesn't come when 
 - **[depict](https://github.com/destbreso/depict)**: turns an idea into an illustrated explainer, a sentence a beat, presented by a guide character. One of the guides was drawn by my daughter.
 - **[instead.fyi](https://instead.fyi)**: mortgages and household debt as simulations. Every screen holds one decision against its alternative, and it never names a winner.
 - **[cv-generator](https://github.com/destbreso/cv-generator)**: a resume builder where the LLM you choose, local or in the cloud, tailors your CV to a role, and nothing leaves your browser.
-- **[agentic-lab](https://github.com/destbreso/agentic-lab)**: a platform for running autonomous agent loops across LLM providers, with their tools and a live dashboard.
+- **[jig](https://github.com/destbreso/jig)**: a harness for any collection of models, in the terminal. You arrange them as a graph of roles that plan, do and check each other's work, and watch the graph move while they work.
 
 <sub>[all repositories →](https://github.com/destbreso?tab=repositories)</sub>
 
